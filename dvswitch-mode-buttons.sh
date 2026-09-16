@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-VERSION="1.0.0-test2"
+VERSION="1.0.0-test4"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
 PRESET_DIR="/etc/dvswitch-mode-buttons"
@@ -68,8 +68,12 @@ text=open(ini, encoding='utf-8').read()
 if not re.search(r'(?m)^\[DMR Network\]\s*$', text): raise SystemExit('missing [DMR Network] section')
 def make(name, address, port, password):
     lines=text.splitlines(True); start=next(i for i,x in enumerate(lines) if re.match(r'^\[DMR Network\]\s*$',x)); end=next((i for i in range(start+1,len(lines)) if re.match(r'^\[.*\]\s*$',lines[i])),len(lines))
-    section='[DMR Network]\nEnable=1\nAddress='+address+'\nPort='+port+'\nJitter=360\nLocal=62032\nPassword='+password+'\n# Options=\nSlot1=0\nSlot2=1\nDebug=0\n'
-    data=''.join(lines[:start])+section+''.join(lines[end:])
+    replacement={'address':address,'port':port,'password':password}
+    for i in range(start+1,end):
+        m=re.match(r'^(Address|Port|Password)([ \t]*=[ \t]*)[^\r\n]*(\r?\n)?$',lines[i],re.I)
+        if m:
+            key=m.group(1).lower(); lines[i]=m.group(1)+m.group(2)+replacement[key]+(m.group(3) or '')
+    data=''.join(lines)
     fd,tmp=tempfile.mkstemp(dir=outdir); os.close(fd); open(tmp,'w',encoding='utf-8',newline='').write(data); shutil.copystat(ini,tmp); os.chown(tmp,os.stat(ini).st_uid,os.stat(ini).st_gid); os.chmod(tmp,os.stat(ini).st_mode & 0o7777); os.replace(tmp,os.path.join(outdir,'MMDVM_Bridge.'+name+'.ini'))
 if os.environ['alternate_net']=='BM' and os.environ['bm_ok']=='1': make('BM',os.environ['bm_address'],os.environ['bm_port'],os.environ['bm_password'])
 if os.environ['alternate_net']=='TGIF' and os.environ['tgif_ok']=='1': make('TGIF',os.environ['tgif_address'],os.environ['tgif_port'],os.environ['tgif_password'])
