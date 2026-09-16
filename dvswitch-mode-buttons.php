@@ -11,6 +11,7 @@ if (isset($_GET['status'])) {
         if (is_array($data)) {
             foreach (array($data['tlv']['ambe_mode'] ?? '', $data['ambe_mode'] ?? '') as $value) {
                 $value = strtoupper(trim((string)$value));
+                if ($value === 'YSFN' || $value === 'YSFW') { $value = 'YSF'; }
                 if ($value !== '') { $mode = $value; break; }
             }
         }
