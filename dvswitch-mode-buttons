@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -u
+
+MODE_CMD="/opt/MMDVM_Bridge/dvswitch.sh"
+NETWORK_HELPER="/usr/local/sbin/dvswitch-dmr-network"
+
+die(){ echo "ERROR: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "run with sudo"
+[[ $# -eq 1 ]] || die "usage: $0 BM|TGIF|STFU|YSF|P25|NXDN|DSTAR"
+mode="${1^^}"
+
+case "$mode" in
+  BM|TGIF)
+    [[ -x "$NETWORK_HELPER" ]] || die "missing $NETWORK_HELPER"
+    exec "$NETWORK_HELPER" "$mode"
+    ;;
+  DSTAR) mode="DSTAR" ;;
+  STFU|YSF|P25|NXDN) ;;
+  *) die "unsupported mode: $1" ;;
+esac
+
+[[ -x "$MODE_CMD" ]] || die "missing executable $MODE_CMD"
+output="$(mktemp /tmp/dvswitch-mode-buttons.XXXXXX)" || die "cannot create temporary output"
+trap 'rm -f "$output"' EXIT
+if ! "$MODE_CMD" mode "$mode" >"$output" 2>&1; then
+  cat "$output" >&2
+  die "DVSwitch mode command failed"
+fi
+cat "$output"
+echo "PASS: DVSwitch mode selected: $mode"

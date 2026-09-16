@@ -1,0 +1,7 @@
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons BM
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons TGIF
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons STFU
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons YSF
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons P25
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons NXDN
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons DSTAR
