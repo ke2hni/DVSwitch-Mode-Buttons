@@ -12,7 +12,7 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 
 mode="check"
 [[ ${1:-} == "--install" ]] && mode="install"
-[[ ${1:-} == "--check" || ${1:-} == "" ]] || die "usage: $0 [--check|--install]"
+[[ ${1:-} == "--check" || ${1:-} == "--install" || ${1:-} == "" ]] || die "usage: $0 [--check|--install]"
 
 network="$(awk '
   /^\[DMR Network\]/{insec=1;next} /^\[/{insec=0}
