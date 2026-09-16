@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 set -u
 
-VERSION="1.0.0-test1"
+VERSION="1.0.0-test2"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
 PRESET_DIR="/etc/dvswitch-mode-buttons"
-HELPER="/usr/local/sbin/dvswitch-mode-buttons"
-ENDPOINT="/usr/share/dvswitch/dvswitch-mode-buttons.php"
 
 die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
@@ -26,19 +24,55 @@ case "$network" in
   *) default_net=UNKNOWN;;
 esac
 
+getvar(){ awk -F= -v key="$1" '$1 == key {sub(/^[^=]*=/,""); print; exit}' "$VAR"; }
+
 if [[ $mode == check ]]; then
   echo "DVSwitch Mode Buttons $VERSION"
   echo "MMDVM_Bridge.ini: $INI"
   echo "Current DMR network: $default_net ($network)"
   [[ -f "$VAR" ]] && echo "DVSwitch var.txt: found" || echo "DVSwitch var.txt: not found"
   echo "PASS: installer prerequisites checked; no files changed."
+  echo "BM address: $(getvar bm_address)"
+  echo "TGIF address: $(getvar tgif_address)"
   exit 0
 fi
 
+[[ -f "$VAR" ]] || die "missing $VAR"
 install -d -m 700 -o root -g root "$PRESET_DIR"
-cp -p "$INI" "$PRESET_DIR/MMDVM_Bridge.$([[ $default_net == BM ]] && echo BM || echo TGIF).ini"
 
-echo "The initial version creates the current-network preset now."
-echo "The alternate BM/TGIF preset requires the exact var.txt format and will be completed after pi4test inspection."
-echo "Current-network preset created in $PRESET_DIR."
-echo "PASS: initial test files installed."
+bm_address="$(getvar bm_address)"; bm_port="$(getvar bm_port)"; bm_password="$(getvar bm_password)"
+tgif_address="$(getvar tgif_address)"; tgif_port="$(getvar tgif_port)"; tgif_password="$(getvar tgif_password)"
+[[ $default_net == BM || $default_net == TGIF ]] || die "current DMR address is not recognized as BM or TGIF"
+cp -p "$INI" "$PRESET_DIR/MMDVM_Bridge.$default_net.ini"
+alternate_net=TGIF; [[ $default_net == TGIF ]] && alternate_net=BM
+if [[ $alternate_net == BM ]]; then
+  [[ -n "$bm_address" ]] || read -r -p "BrandMeister address: " bm_address
+  [[ -n "$bm_port" ]] || read -r -p "BrandMeister port: " bm_port
+  [[ -n "$bm_password" ]] || { read -r -s -p "BrandMeister password: " bm_password; echo; }
+else
+  [[ -n "$tgif_address" ]] || read -r -p "TGIF address: " tgif_address
+  [[ -n "$tgif_port" ]] || read -r -p "TGIF port: " tgif_port
+  [[ -n "$tgif_password" ]] || { read -r -s -p "TGIF password: " tgif_password; echo; }
+fi
+
+[[ -n "$bm_address" && -n "$bm_port" && -n "$bm_password" ]] && bm_ok=1 || bm_ok=0
+[[ -n "$tgif_address" && -n "$tgif_port" && -n "$tgif_password" ]] && tgif_ok=1 || tgif_ok=0
+[[ $alternate_net == BM && $bm_ok != 1 ]] && echo "BM preset not enabled: required BM data was not provided."
+[[ $alternate_net == TGIF && $tgif_ok != 1 ]] && echo "TGIF preset not enabled: required TGIF data was not provided."
+
+export INI PRESET_DIR alternate_net bm_address bm_port bm_password tgif_address tgif_port tgif_password bm_ok tgif_ok
+python3 - <<'PY'
+import os, re, shutil, tempfile
+ini=os.environ['INI']; outdir=os.environ['PRESET_DIR']
+text=open(ini, encoding='utf-8').read()
+if not re.search(r'(?m)^\[DMR Network\]\s*$', text): raise SystemExit('missing [DMR Network] section')
+def make(name, address, port, password):
+    lines=text.splitlines(True); start=next(i for i,x in enumerate(lines) if re.match(r'^\[DMR Network\]\s*$',x)); end=next((i for i in range(start+1,len(lines)) if re.match(r'^\[.*\]\s*$',lines[i])),len(lines))
+    section='[DMR Network]\nEnable=1\nAddress='+address+'\nPort='+port+'\nJitter=360\nLocal=62032\nPassword='+password+'\n# Options=\nSlot1=0\nSlot2=1\nDebug=0\n'
+    data=''.join(lines[:start])+section+''.join(lines[end:])
+    fd,tmp=tempfile.mkstemp(dir=outdir); os.close(fd); open(tmp,'w',encoding='utf-8',newline='').write(data); shutil.copystat(ini,tmp); os.chown(tmp,os.stat(ini).st_uid,os.stat(ini).st_gid); os.chmod(tmp,os.stat(ini).st_mode & 0o7777); os.replace(tmp,os.path.join(outdir,'MMDVM_Bridge.'+name+'.ini'))
+if os.environ['alternate_net']=='BM' and os.environ['bm_ok']=='1': make('BM',os.environ['bm_address'],os.environ['bm_port'],os.environ['bm_password'])
+if os.environ['alternate_net']=='TGIF' and os.environ['tgif_ok']=='1': make('TGIF',os.environ['tgif_address'],os.environ['tgif_port'],os.environ['tgif_password'])
+PY
+chmod 700 "$PRESET_DIR"; chown -R root:root "$PRESET_DIR"
+echo "PASS: created available BM/TGIF presets in $PRESET_DIR."
