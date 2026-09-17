@@ -8,6 +8,7 @@ import os, shutil, sys
 from pathlib import Path
 p=Path(sys.argv[1]); s=p.read_text(encoding='utf-8')
 old="""    $txValue = $abinfo['digital']['tg'];
+    // DVSwitch-Mods: D-Star Tx TG/Ref display v1
     if ($abinfo['tlv']['ambe_mode'] == \"DSTAR\") {
         $txValue = preg_replace('/^(Linked to|Linking to)\\s+/i', '', trim(strip_tags(str_replace("<br />", " ", getDSTARLinks()))));
         $txValue = preg_replace('/\\s*\\(.*\\)\\s*$/', '', $txValue);
