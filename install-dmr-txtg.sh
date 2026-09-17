@@ -29,12 +29,18 @@ case "$network" in
 esac
 alternate=TGIF; [[ "$current" == TGIF ]] && alternate=BM
 
-start_count="$(grep -Eic '^[[:space:]]*StartTG[[:space:]]*=' "$AB")"
-[[ "$start_count" == 1 ]] || die "expected exactly one StartTG setting in Analog_Bridge.ini; found $start_count"
-current_tg="$(sed -nE 's/^[[:space:]]*StartTG[[:space:]]*=[[:space:]]*([^;#[:space:]]+).*$/\1/ip' "$AB")"
-[[ -n "$current_tg" ]] || die 'current StartTG is empty'
-read -r -p "$alternate StartTG for boot: " alternate_tg
-[[ "$alternate_tg" =~ ^[0-9]+$ ]] || die 'StartTG must be numeric'
+start_count="$(python3 - "$AB" <<'PY'
+import re, sys
+t=open(sys.argv[1], encoding='utf-8').read()
+m=re.search(r'(?ms)^\[AMBE_AUDIO\]\s*\n(.*?)(?=^\[|\Z)', t)
+print(len(re.findall(r'(?im)^\s*txTg\s*=', m.group(1))) if m else 0)
+PY
+)"
+[[ "$start_count" == 1 ]] || die "expected exactly one txTg setting in [AMBE_AUDIO]; found $start_count"
+current_tg="$(sed -nE '/^\[AMBE_AUDIO\][[:space:]]*$/,/^\[/ s/^[[:space:]]*txTg[[:space:]]*=[[:space:]]*([^;#[:space:]]+).*$/\1/ip' "$AB")"
+[[ -n "$current_tg" ]] || die 'current txTg is empty'
+read -r -p "$alternate txTg for boot: " alternate_tg
+[[ "$alternate_tg" =~ ^[0-9]+$ ]] || die 'txTg must be numeric'
 
 install -d -m 700 -o root -g root "$PRESET_DIR"
 stamp="$(date +%Y%m%d-%H%M%S)"
@@ -48,10 +54,15 @@ import os, re, shutil, tempfile
 ab=os.environ['AB']; out=os.environ['PRESET_DIR']
 current=os.environ['current']; alternate=os.environ['alternate']; alt_tg=os.environ['alternate_tg']
 data=open(ab, encoding='utf-8', newline='').read()
-line=re.compile(r'^(\s*StartTG\s*=\s*)([^;#\r\n]+)(.*)$', re.I|re.M)
-if len(line.findall(data)) != 1: raise SystemExit('expected exactly one StartTG')
+section=re.search(r'(?ms)^\[AMBE_AUDIO\]\s*\n(.*?)(?=^\[|\Z)', data)
+if not section: raise SystemExit('missing [AMBE_AUDIO]')
+line=re.compile(r'^(\s*txTg\s*=\s*)([^;#\r\n]+)(.*)$', re.I|re.M)
+if len(line.findall(section.group(1))) != 1: raise SystemExit('expected exactly one txTg in [AMBE_AUDIO]')
 def write(name, value):
-    result=line.sub(lambda m: m.group(1)+value+m.group(3), data, count=1) if name == alternate else data
+    result=data
+    if name == alternate:
+        body=line.sub(lambda m: m.group(1)+value+m.group(3), section.group(1), count=1)
+        result=data[:section.start(1)]+body+data[section.end(1):]
     fd,tmp=tempfile.mkstemp(dir=out); os.close(fd)
     with open(tmp,'w',encoding='utf-8',newline='') as f: f.write(result)
     shutil.copystat(ab,tmp); st=os.stat(ab); os.chown(tmp,st.st_uid,st.st_gid); os.replace(tmp,os.path.join(out,'Analog_Bridge.'+name+'.ini'))
@@ -75,12 +86,12 @@ PY
 case "$net" in *brandmeister*|*repeater.net*|*3102*|*3104*) p="$DIR/Analog_Bridge.BM.ini"; n=BM;; *tgif*) p="$DIR/Analog_Bridge.TGIF.ini"; n=TGIF;; *) echo "ERROR: unknown DMR network: ${net:-none}" >&2; exit 1;; esac
 [[ -f "$p" ]] || { echo "ERROR: missing $p" >&2; exit 1; }
 install -m "$(stat -c %a "$AB")" -o "$(stat -c %u "$AB")" -g "$(stat -c %g "$AB")" "$p" "$AB"
-echo "PASS: selected $n Analog_Bridge StartTG preset."
+echo "PASS: selected $n Analog_Bridge txTg preset."
 SH
 
 install -m 644 -o root -g root /dev/stdin "$UNIT" <<'UNIT'
 [Unit]
-Description=Select the BM/TGIF Analog_Bridge StartTG preset
+Description=Select the BM/TGIF Analog_Bridge txTg preset
 Before=analog_bridge.service
 Before=mmdvm_bridge.service
 Wants=analog_bridge.service
@@ -96,7 +107,7 @@ WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
 systemctl enable dvswitch-dmr-starttg.service >/dev/null
-echo "PASS: DMR boot StartTG selector installed."
-echo "Current network: $current; current StartTG: $current_tg"
-echo "Alternate network: $alternate; alternate StartTG: $alternate_tg"
+echo "PASS: DMR boot txTg selector installed."
+echo "Current network: $current; current txTg: $current_tg"
+echo "Alternate network: $alternate; alternate txTg: $alternate_tg"
 echo "Presets: $PRESET_DIR"
