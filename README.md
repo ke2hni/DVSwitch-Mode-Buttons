@@ -2,8 +2,8 @@
 
 Separate dashboard mode-selection project for DVSwitch.
 
-Version 1.0.0-test1 is an initial `pi4test` development build. It is not part of
-the `DVSwitch-Mods` repository.
+This repository is a separate project from `DVSwitch-Mods`. The current test
+release includes the dashboard mode buttons and the STFU network card v7.
 
 The intended behavior is:
 
@@ -15,15 +15,27 @@ The intended behavior is:
 - Selecting BM or TGIF replaces the live INI while preserving its ownership and permissions,
   restarts the required DVSwitch services, selects DMR, and verifies the result.
 
-The alternate-preset parser is intentionally pending exact validation against a real
-`var.txt` file on `pi4test`; no password or configuration value is guessed.
+The STFU card installer reads `StartTG` from `/opt/MMDVM_Bridge/DVSwitch.ini`,
+including configuration lines with inline comments, and uses the BrandMeister
+talkgroup list for the friendly name. It does not modify `functions.php`.
+
+The separate dashboard duration repair belongs in `DVSwitch-Mods` and is not
+part of this repository.
 
 ## Test
 
+Run the checks before installing:
+
 ```bash
-cd ~/DVSwitch-Mode-Buttons
-sudo ./dvswitch-mode-buttons.sh --check
+cd ~/DVSwitch-Mode-Buttons && sudo ./dvswitch-mode-buttons.sh --check
 ```
 
-Do not run `--install` until the `var.txt` format has been inspected and the alternate
-preset has passed review.
+Install the STFU card separately when the mode-button installation is already
+working:
+
+```bash
+cd ~/DVSwitch-Mode-Buttons && sudo ./install-stfu-card-v7.sh && sudo php -l /usr/share/dvswitch/include/status.php && sudo systemctl restart apache2
+```
+
+The installer creates a backup beside `status.php` and refuses to overwrite an
+existing STFU card.
