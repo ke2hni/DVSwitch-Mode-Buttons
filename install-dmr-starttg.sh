@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT=/opt/MMDVM_Bridge
-AB="$ROOT/Analog_Bridge.ini"
-MB="$ROOT/MMDVM_Bridge.ini"
+AB_ROOT=/opt/Analog_Bridge
+MB_ROOT=/opt/MMDVM_Bridge
+AB="$AB_ROOT/Analog_Bridge.ini"
+MB="$MB_ROOT/MMDVM_Bridge.ini"
 PRESET_DIR=/etc/dvswitch-mode-buttons/dmr-presets
 SELECTOR=/usr/local/sbin/dvswitch-select-dmr-starttg
 UNIT=/etc/systemd/system/dvswitch-dmr-starttg.service
@@ -61,7 +62,7 @@ install -m 755 -o root -g root /dev/stdin "$SELECTOR" <<'SH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 MB=/opt/MMDVM_Bridge/MMDVM_Bridge.ini
-AB=/opt/MMDVM_Bridge/Analog_Bridge.ini
+AB=/opt/Analog_Bridge/Analog_Bridge.ini
 DIR=/etc/dvswitch-mode-buttons/dmr-presets
 [[ -f "$MB" && -f "$AB" ]] || { echo 'ERROR: required INI file missing' >&2; exit 1; }
 net="$(python3 - "$MB" <<'PY'
