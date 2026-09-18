@@ -44,21 +44,18 @@ from pathlib import Path
 p=Path(os.environ["TARGET"]); s=p.read_text()
 marker="<!-- DVSwitch-Mode-Buttons single-file v1 -->"
 block='''<!-- DVSwitch-Mode-Buttons single-file v1 -->
-<div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
+<div id="dvs-mode-buttons" aria-label="Select Mode" style="position:fixed!important;left:max(8px,calc(50% - 500px))!important;top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:4px!important;text-align:center!important;z-index:9999!important"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <style>#dvs-mode-buttons{position:fixed!important;left:max(8px,calc(50% - 500px))!important;top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:4px!important;text-align:center!important;z-index:9999!important}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px;white-space:nowrap}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}@media(max-width:1100px){#dvs-mode-buttons{position:fixed!important;left:8px!important;top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important}}</style>
 <script>(function(){const box=document.getElementById("dvs-mode-buttons"),buttons=[...box.querySelectorAll("button")];function select(b){buttons.forEach(x=>x.classList.toggle("selected",x===b))}buttons.forEach(b=>b.addEventListener("click",async()=>{buttons.forEach(x=>x.disabled=true);try{const r=await fetch("/dvswitch/dvswitch-mode-buttons.php?mode="+encodeURIComponent(b.dataset.mode)),j=await r.json();if(!j.ok)throw new Error(j.output||j.error||"switch failed");select(b)}catch(e){alert("Mode switch failed: "+e.message)}finally{buttons.forEach(x=>x.disabled=false)}}))})();</script>'''
-start=s.find('<div id="dvs-mode-buttons"')
-if start >= 0:
-    comment=s.rfind("<!-- DVSwitch-Mode-Buttons",0,start)
-    a=comment if comment >= 0 else start
-    b=s.find("</script>",start)
-    if b < 0: raise SystemExit("ERROR: existing mode-button script end not found")
-    s=s[:a]+block+s[b+len("</script>"):]
-else:
-    pos=s.rfind("</body>")
-    if pos<0: raise SystemExit("ERROR: </body> not found")
-    s=s[:pos]+block+s[pos:]
+import re
+pattern=r'\s*(?:<!--\s*DVSwitch-Mode-Buttons.*?-->\s*)?<div id=["\']dvs-mode-buttons["\'].*?</script>\s*'
+cleaned,count=re.subn(pattern,"\n",s,count=0,flags=re.S|re.I)
+if count:
+    s=cleaned
+pos=s.rfind("</body>")
+if pos<0: raise SystemExit("ERROR: </body> not found")
+s=s[:pos]+block+s[pos:]
 tmp=p.with_name(p.name+".tmp-mode-buttons"); tmp.write_text(s); shutil.copystat(p,tmp); st=os.stat(p); os.chown(tmp,st.st_uid,st.st_gid); os.replace(tmp,p)
 PY
 bash -n "$MODE_HELPER"; bash -n "$NETWORK_HELPER"
