@@ -3,6 +3,8 @@ set -u
 
 MODE_CMD="/opt/MMDVM_Bridge/dvswitch.sh"
 NETWORK_HELPER="/usr/local/sbin/dvswitch-dmr-network"
+STATE_DIR="/var/lib/dvswitch-mode-buttons"
+STATE_FILE="$STATE_DIR/current-mode"
 
 die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
@@ -12,7 +14,12 @@ mode="${1^^}"
 case "$mode" in
   BM|TGIF)
     [[ -x "$NETWORK_HELPER" ]] || die "missing $NETWORK_HELPER"
-    exec "$NETWORK_HELPER" "$mode"
+    "$NETWORK_HELPER" "$mode"
+    install -d -m 700 -o root -g root "$STATE_DIR"
+    printf '%s\n' "$mode" > "$STATE_FILE"
+    chown root:root "$STATE_FILE"
+    chmod 600 "$STATE_FILE"
+    exit 0
     ;;
   DSTAR) mode="DSTAR" ;;
   STFU|YSF|P25|NXDN) ;;
@@ -27,4 +34,8 @@ if ! "$MODE_CMD" mode "$mode" >"$output" 2>&1; then
   die "DVSwitch mode command failed"
 fi
 cat "$output"
+install -d -m 700 -o root -g root "$STATE_DIR"
+printf '%s\n' "$mode" > "$STATE_FILE"
+chown root:root "$STATE_FILE"
+chmod 600 "$STATE_FILE"
 echo "PASS: DVSwitch mode selected: $mode"
