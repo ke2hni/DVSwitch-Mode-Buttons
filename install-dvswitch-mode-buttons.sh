@@ -46,11 +46,71 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 show(){ git show "$1:$2" > "$tmp/$(basename "$2").$1"; }
 
+patch_dmr_helper(){
+  HELPER="$tmp/dvswitch-dmr-network.sh.$BACKEND_BASE" python3 - <<'PY'
+from pathlib import Path
+import os
+
+path = Path(os.environ['HELPER'])
+text = path.read_text(encoding='utf-8')
+
+if 'Analog_Bridge.ini' in text or 'analog_preset' in text:
+    raise SystemExit('ERROR: source DMR helper must not contain Analog_Bridge handling')
+if 'systemctl restart analog_bridge mmdvm_bridge' not in text:
+    raise SystemExit('ERROR: expected DMR service restart was not found')
+
+state_function = r'''
+update_state(){
+    local state_file=/var/lib/mmdvm/dvswitch-mods-dmr-state.json
+    [[ -e "$state_file" ]] || return 0
+    STATE_FILE="$state_file" NETWORK="$1" python3 - <<'PY_STATE'
+import json
+import os
+import stat
+import tempfile
+from pathlib import Path
+
+path = Path(os.environ['STATE_FILE'])
+network = os.environ['NETWORK'].upper()
+with path.open(encoding='utf-8') as source:
+    state = json.load(source)
+if not isinstance(state, dict):
+    raise ValueError('DMR state is not a JSON object')
+state['current_network'] = network
+mode = stat.S_IMODE(path.stat().st_mode)
+fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=str(path.parent), text=True)
+try:
+    with os.fdopen(fd, 'w', encoding='utf-8') as target:
+        json.dump(state, target, indent=4)
+        target.write('\n')
+    os.chown(name, path.stat().st_uid, path.stat().st_gid)
+    os.chmod(name, mode)
+    os.replace(name, path)
+except Exception:
+    try:
+        os.unlink(name)
+    except FileNotFoundError:
+        pass
+    raise
+PY_STATE
+}
+'''
+text = text.replace('\nsystemctl restart analog_bridge mmdvm_bridge', state_function + '\nsystemctl restart analog_bridge mmdvm_bridge', 1)
+text = text.replace('systemctl is-active --quiet analog_bridge mmdvm_bridge || die "DVSwitch service verification failed"\n', 'systemctl is-active --quiet analog_bridge mmdvm_bridge || die "DVSwitch service verification failed"\nupdate_state "$network" || die "could not update DMR network state"\n', 1)
+
+if 'Analog_Bridge.ini' in text or 'analog_preset' in text or 'update_state "$network"' not in text:
+    raise SystemExit('ERROR: generated DMR helper failed final validation')
+path.write_text(text, encoding='utf-8', newline='\n')
+PY
+}
+
 show "$BACKEND_BASE" dvswitch-mode-buttons.sh
 show "$BACKEND_BASE" dvswitch-dmr-network.sh
 show "$HELPER_BASE" dvswitch-mode-buttons
 show "$ENDPOINT_BASE" dvswitch-mode-buttons.php
 show "$BACKEND_BASE" dvswitch-mode-buttons.sudoers
+
+patch_dmr_helper
 
 install -o root -g root -m 755 "$tmp/dvswitch-mode-buttons.$HELPER_BASE" /usr/local/sbin/dvswitch-mode-buttons
 install -o root -g root -m 755 "$tmp/dvswitch-dmr-network.sh.$BACKEND_BASE" /usr/local/sbin/dvswitch-dmr-network
@@ -60,6 +120,10 @@ install -o root -g root -m 440 "$tmp/dvswitch-mode-buttons.sudoers.$BACKEND_BASE
 visudo -cf /etc/sudoers.d/dvswitch-mode-buttons >/dev/null || die 'sudoers validation failed'
 php -l /usr/share/dvswitch/dvswitch-mode-buttons.php >/dev/null || die 'endpoint PHP validation failed'
 bash -n /usr/local/sbin/dvswitch-mode-buttons /usr/local/sbin/dvswitch-dmr-network
+grep -qF 'update_state "$network"' /usr/local/sbin/dvswitch-dmr-network || die 'DMR state update is missing'
+if grep -qF 'Analog_Bridge.ini' /usr/local/sbin/dvswitch-dmr-network; then
+  die 'DMR helper must not modify Analog_Bridge.ini'
+fi
 
 bash "$tmp/dvswitch-mode-buttons.sh.$BACKEND_BASE" --install
 
@@ -80,3 +144,4 @@ grep -qF "fetch('/dvswitch/dvswitch-mode-buttons.php?status=1" "$TARGET" || die 
 grep -qF "fetch('/dvswitch/dvswitch-mode-buttons.php?mode=" "$TARGET" || die 'mode-switch request missing'
 
 echo 'PASS: unified dashboard, refresh, endpoint, helper, sudoers, and BM/TGIF installer installed.'
+echo 'PASS: DMR helper updates the Mods network state and does not modify Analog_Bridge.ini.'
