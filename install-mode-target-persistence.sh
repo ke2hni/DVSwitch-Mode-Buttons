@@ -34,6 +34,7 @@ path, marker = sys.argv[1:]
 with open(path, 'rb') as f:
     raw = f.read()
 newline = b'\r\n' if b'\r\n' in raw else b'\n'
+newline = newline.decode()
 text = raw.replace(b'\r\n', b'\n').decode()
 block = '''    if [ "${#}" -eq 0 ]; then
         getABInfoValue last_tune
@@ -79,6 +80,7 @@ for path in sys.argv[1:]:
     with open(path, 'rb') as f: raw = f.read()
     if b'per-mode target persistence v1' in raw: continue
     nl = b'\r\n' if b'\r\n' in raw else b'\n'
+    nl = nl.decode()
     text = raw.replace(b'\r\n', b'\n').decode()
     if path.endswith('dvswitch-mode-buttons'):
         old = "printf '%s\\n' \"$mode\" > \"$STATE_FILE\"\nchown root:root \"$STATE_FILE\"\nchmod 600 \"$STATE_FILE\"\necho \"PASS: DVSwitch mode selected: $mode\""
