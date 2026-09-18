@@ -59,7 +59,7 @@ s,n=re.subn(r'\s*(?:<!--\s*DVSwitch-Mode-Buttons.*?-->\s*)?<div id=["\']dvs-mode
 if n: p.write_text(s)
 PY
 
-(cd "$tmp" && ./dvswitch-mode-buttons.sh --install)
+(cd "$tmp" && bash ./dvswitch-mode-buttons.sh --install)
 "$tmp/install-dashboard-buttons.sh"
 bash -n /usr/local/sbin/dvswitch-mode-buttons /usr/local/sbin/dvswitch-dmr-network
 php -l /usr/share/dvswitch/dvswitch-mode-buttons.php >/dev/null
