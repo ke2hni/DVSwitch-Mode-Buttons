@@ -60,7 +60,7 @@ if n: p.write_text(s)
 PY
 
 (cd "$tmp" && bash ./dvswitch-mode-buttons.sh --install)
-"$tmp/install-dashboard-buttons.sh"
+bash "$tmp/install-dashboard-buttons.sh"
 bash -n /usr/local/sbin/dvswitch-mode-buttons /usr/local/sbin/dvswitch-dmr-network
 php -l /usr/share/dvswitch/dvswitch-mode-buttons.php >/dev/null
 echo "PASS: repository files installed unchanged."
