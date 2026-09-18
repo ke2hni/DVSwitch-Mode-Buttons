@@ -1,64 +1,69 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-TARGET="/usr/share/dvswitch/index.php"
-BASE="/etc/dvswitch-mode-buttons"
-BACKUP="/var/backups/dvswitch-mode-buttons/install-$(date +%Y%m%d-%H%M%S)"
-MODE_HELPER="/usr/local/sbin/dvswitch-mode-buttons"
-NETWORK_HELPER="/usr/local/sbin/dvswitch-dmr-network"
-ENDPOINT="/usr/share/dvswitch/dvswitch-mode-buttons.php"
-SUDOERS="/etc/sudoers.d/dvswitch-mode-buttons"
-[[ $EUID -eq 0 ]] || { echo "ERROR: run with sudo" >&2; exit 1; }
+
+TARGET=/usr/share/dvswitch/index.php
+REPO_BASE=3e013b4
+DASH_BASE=516a05c
+BASE=/etc/dvswitch-mode-buttons
+BACKUP=/var/backups/dvswitch-mode-buttons/install-$(date +%Y%m%d-%H%M%S)
+
+die(){ echo "ERROR: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die 'run with sudo'
 [[ $# -eq 1 && ( "$1" == --check || "$1" == --install ) ]] || { echo "Usage: sudo $0 --check|--install" >&2; exit 2; }
-[[ -f "$TARGET" && -x /opt/MMDVM_Bridge/dvswitch.sh ]] || { echo "ERROR: DVSwitch dashboard or mode command is missing" >&2; exit 1; }
+[[ -d .git ]] || die 'run from the DVSwitch-Mode-Buttons repository'
+[[ -f "$TARGET" ]] || die "missing $TARGET"
+[[ -x /opt/MMDVM_Bridge/dvswitch.sh ]] || die 'missing /opt/MMDVM_Bridge/dvswitch.sh'
+git cat-file -e "$REPO_BASE^{commit}" || die "missing repository baseline $REPO_BASE"
+git cat-file -e "$DASH_BASE^{commit}" || die "missing repository dashboard baseline $DASH_BASE"
+
 if [[ "$1" == --check ]]; then
-  echo "DVSwitch Mode Buttons single-file installer"
-  echo "Dashboard: $TARGET"
-  echo "MMDVM_Bridge mode command: /opt/MMDVM_Bridge/dvswitch.sh"
-  [[ -f /var/lib/dvswitch/dvs/var.txt ]] && echo "DVSwitch var.txt: found" || echo "DVSwitch var.txt: not found"
-  echo "PASS: prerequisites checked; no files changed"
+  echo "DVSwitch Mode Buttons repository installer"
+  echo "Clean backend baseline: $REPO_BASE"
+  echo "Clean dashboard installer baseline: $DASH_BASE"
+  [[ -f /var/lib/dvswitch/dvs/var.txt ]] && echo 'DVSwitch var.txt: found' || echo 'DVSwitch var.txt: not found'
+  echo 'PASS: prerequisites checked; no files changed.'
   exit 0
 fi
-stamp=$(date +%Y%m%d-%H%M%S); install -d -m 700 -o root -g root "$BACKUP" "$BASE"
-[[ -e "$TARGET" ]] && cp -a "$TARGET" "$BACKUP/index.php"
-for p in "$MODE_HELPER" "$NETWORK_HELPER" "$ENDPOINT" "$SUDOERS"; do [[ -e "$p" ]] && cp -a "$p" "$BACKUP/$(basename "$p")"; done
-write_payload(){ echo "$2" | base64 -d > "$1"; }
-write_payload /tmp/dmb-network 'IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLXUKClZFUlNJT049IjEuMC4wLXRlc3Q1IgpJTkk9Ii9vcHQvTU1EVk1fQnJpZGdlL01NRFZNX0JyaWRnZS5pbmkiClBSRVNFVF9ESVI9Ii9ldGMvZHZzd2l0Y2gtbW9kZS1idXR0b25zIgpNT0RFX0NNRD0iL29wdC9NTURWTV9CcmlkZ2UvZHZzd2l0Y2guc2giCgpkaWUoKXsgZWNobyAiRVJST1I6ICQqIiA+JjI7IGV4aXQgMTsgfQpbWyAkRVVJRCAtZXEgMCBdXSB8fCBkaWUgInJ1biB3aXRoIHN1ZG8iCltbICQjIC1lcSAxIF1dIHx8IGRpZSAidXNhZ2U6ICQwIEJNfFRHSUYiCm5ldHdvcms9IiR7MV5efSIKW1sgJG5ldHdvcmsgPT0gQk0gfHwgJG5ldHdvcmsgPT0gVEdJRiBdXSB8fCBkaWUgIm5ldHdvcmsgbXVzdCBiZSBCTSBvciBUR0lGIgpwcmVzZXQ9IiRQUkVTRVRfRElSL01NRFZNX0JyaWRnZS4kbmV0d29yay5pbmkiCltbIC1mICIkSU5JIiBdXSB8fCBkaWUgIm1pc3NpbmcgJElOSSIKW1sgLWYgIiRwcmVzZXQiIF1dIHx8IGRpZSAiJG5ldHdvcmsgcHJlc2V0IGlzIG5vdCBpbnN0YWxsZWQiCltbIC14ICIkTU9ERV9DTUQiIF1dIHx8IGRpZSAibWlzc2luZyBleGVjdXRhYmxlICRNT0RFX0NNRCIKCm93bmVyPSIkKHN0YXQgLWMgJyV1JyAiJElOSSIpIgpncm91cD0iJChzdGF0IC1jICclZycgIiRJTkkiKSIKcGVybXM9IiQoc3RhdCAtYyAnJWEnICIkSU5JIikiCnRtcD0iJChta3RlbXAgIiR7SU5JfS50bXAuWFhYWFhYIikiIHx8IGRpZSAiY291bGQgbm90IGNyZWF0ZSB0ZW1wb3JhcnkgSU5JIgp0cmFwICdybSAtZiAiJHRtcCInIEVYSVQKY3AgIiRwcmVzZXQiICIkdG1wIiB8fCBkaWUgImNvdWxkIG5vdCBjb3B5ICRuZXR3b3JrIHByZXNldCIKY2hvd24gIiRvd25lcjokZ3JvdXAiICIkdG1wIiB8fCBkaWUgImNvdWxkIG5vdCBwcmVzZXJ2ZSBJTkkgb3duZXJzaGlwIgpjaG1vZCAiJHBlcm1zIiAiJHRtcCIgfHwgZGllICJjb3VsZCBub3QgcHJlc2VydmUgSU5JIHBlcm1pc3Npb25zIgptdiAtZiAiJHRtcCIgIiRJTkkiIHx8IGRpZSAiY291bGQgbm90IHJlcGxhY2UgbGl2ZSBJTkkiCnRyYXAgLSBFWElUCgpzeXN0ZW1jdGwgcmVzdGFydCBhbmFsb2dfYnJpZGdlIG1tZHZtX2JyaWRnZSB8fCBkaWUgIkRWU3dpdGNoIHNlcnZpY2VzIGZhaWxlZCB0byByZXN0YXJ0IgoiJE1PREVfQ01EIiBtb2RlIERNUiA+L3RtcC9kdnN3aXRjaC1tb2RlLWJ1dHRvbnMtZG1yLm91dCAyPiYxIHx8IHsgY2F0IC90bXAvZHZzd2l0Y2gtbW9kZS1idXR0b25zLWRtci5vdXQ7IGRpZSAiRFZTd2l0Y2ggRE1SIG1vZGUgY29tbWFuZCBmYWlsZWQiOyB9CgphZGRyZXNzPSIkKGF3ayAnCiAgL15cW0RNUiBOZXR3b3JrXF0ve2luc2VjPTE7bmV4dH0gL15cWy97aW5zZWM9MH0KICBpbnNlYyAmJiAvXltbOnNwYWNlOl1dKkFkZHJlc3NbWzpzcGFjZTpdXSo9L3tzdWIoL15bXj1dKj0vLCIiKTsgZ3N1YigvW1s6c3BhY2U6XV0vLCIiKTsgcHJpbnQ7IGV4aXR9CicgIiRJTkkiKSIKY2FzZSAiJG5ldHdvcmsiIGluCiAgQk0pIFtbICIkYWRkcmVzcyIgPT0gKmJyYW5kbWVpc3RlciogfHwgIiRhZGRyZXNzIiA9PSAqcmVwZWF0ZXIubmV0IHx8ICIkYWRkcmVzcyIgPT0gKjMxMDIqIHx8ICIkYWRkcmVzcyIgPT0gKjMxMDQqIF1dIHx8IGRpZSAidmVyaWZpY2F0aW9uIGZhaWxlZDogbGl2ZSBhZGRyZXNzIGlzICRhZGRyZXNzIjs7CiAgVEdJRikgW1sgIiRhZGRyZXNzIiA9PSAqdGdpZiogXV0gfHwgZGllICJ2ZXJpZmljYXRpb24gZmFpbGVkOiBsaXZlIGFkZHJlc3MgaXMgJGFkZHJlc3MiOzsKZXNhYwpzeXN0ZW1jdGwgaXMtYWN0aXZlIC0tcXVpZXQgYW5hbG9nX2JyaWRnZSBtbWR2bV9icmlkZ2UgfHwgZGllICJEVlN3aXRjaCBzZXJ2aWNlIHZlcmlmaWNhdGlvbiBmYWlsZWQiCmVjaG8gIlBBU1M6IERNUiBuZXR3b3JrIHN3aXRjaGVkIHRvICRuZXR3b3JrICgkYWRkcmVzcykuIgo='
-write_payload /tmp/dmb-mode 'IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLXUKCk1PREVfQ01EPSIvb3B0L01NRFZNX0JyaWRnZS9kdnN3aXRjaC5zaCIKTkVUV09SS19IRUxQRVI9Ii91c3IvbG9jYWwvc2Jpbi9kdnN3aXRjaC1kbXItbmV0d29yayIKCmRpZSgpeyBlY2hvICJFUlJPUjogJCoiID4mMjsgZXhpdCAxOyB9CltbICRFVUlEIC1lcSAwIF1dIHx8IGRpZSAicnVuIHdpdGggc3VkbyIKW1sgJCMgLWVxIDEgXV0gfHwgZGllICJ1c2FnZTogJDAgQk18VEdJRnxTVEZVfFlTRnxQMjV8TlhETnxEU1RBUiIKbW9kZT0iJHsxXl59IgoKY2FzZSAiJG1vZGUiIGluCiAgQk18VEdJRikKICAgIFtbIC14ICIkTkVUV09SS19IRUxQRVIiIF1dIHx8IGRpZSAibWlzc2luZyAkTkVUV09SS19IRUxQRVIiCiAgICBleGVjICIkTkVUV09SS19IRUxQRVIiICIkbW9kZSIKICAgIDs7CiAgRFNUQVIpIG1vZGU9IkRTVEFSIiA7OwogIFNURlV8WVNGfFAyNXxOWEROKSA7OwogICopIGRpZSAidW5zdXBwb3J0ZWQgbW9kZTogJDEiIDs7CmVzYWMKCltbIC14ICIkTU9ERV9DTUQiIF1dIHx8IGRpZSAibWlzc2luZyBleGVjdXRhYmxlICRNT0RFX0NNRCIKb3V0cHV0PSIkKG1rdGVtcCAvdG1wL2R2c3dpdGNoLW1vZGUtYnV0dG9ucy5YWFhYWFgpIiB8fCBkaWUgImNhbm5vdCBjcmVhdGUgdGVtcG9yYXJ5IG91dHB1dCIKdHJhcCAncm0gLWYgIiRvdXRwdXQiJyBFWElUCmlmICEgIiRNT0RFX0NNRCIgbW9kZSAiJG1vZGUiID4iJG91dHB1dCIgMj4mMTsgdGhlbgogIGNhdCAiJG91dHB1dCIgPiYyCiAgZGllICJEVlN3aXRjaCBtb2RlIGNvbW1hbmQgZmFpbGVkIgpmaQpjYXQgIiRvdXRwdXQiCmVjaG8gIlBBU1M6IERWU3dpdGNoIG1vZGUgc2VsZWN0ZWQ6ICRtb2RlIgo='
-write_payload /tmp/dmb-endpoint 'PD9waHAKZGVjbGFyZShzdHJpY3RfdHlwZXM9MSk7CgokYWxsb3dlZCA9IGFycmF5KCdCTScsICdUR0lGJywgJ1NURlUnLCAnWVNGJywgJ1AyNScsICdOWEROJywgJ0RTVEFSJyk7CiRtb2RlID0gc3RydG91cHBlcih0cmltKChzdHJpbmcpKCRfR0VUWydtb2RlJ10gPz8gJycpKSk7CmlmICghaW5fYXJyYXkoJG1vZGUsICRhbGxvd2VkLCB0cnVlKSkgewogICAgaHR0cF9yZXNwb25zZV9jb2RlKDQwMCk7CiAgICBoZWFkZXIoJ0NvbnRlbnQtVHlwZTogYXBwbGljYXRpb24vanNvbicpOwogICAgZWNobyBqc29uX2VuY29kZShhcnJheSgnb2snID0+IGZhbHNlLCAnZXJyb3InID0+ICdVbnN1cHBvcnRlZCBtb2RlJykpOwogICAgZXhpdDsKfQoKJGNvbW1hbmQgPSAnL3Vzci9iaW4vc3VkbyAvdXNyL2xvY2FsL3NiaW4vZHZzd2l0Y2gtbW9kZS1idXR0b25zICcuZXNjYXBlc2hlbGxhcmcoJG1vZGUpLicgMj4mMSc7CiRvdXRwdXQgPSBhcnJheSgpOwokc3RhdHVzID0gMDsKZXhlYygkY29tbWFuZCwgJG91dHB1dCwgJHN0YXR1cyk7CmhlYWRlcignQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9qc29uJyk7CmVjaG8ganNvbl9lbmNvZGUoYXJyYXkoCiAgICAnb2snID0+ICRzdGF0dXMgPT09IDAsCiAgICAnbW9kZScgPT4gJG1vZGUsCiAgICAnb3V0cHV0JyA9PiBpbXBsb2RlKCJcbiIsICRvdXRwdXQpLAogICAgJ3N0YXR1cycgPT4gJHN0YXR1cywKKSk7Cj8+Cg=='
-write_payload /tmp/dmb-preset 'IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLXUKClZFUlNJT049IjEuMC4wLXRlc3Q0IgpJTkk9Ii9vcHQvTU1EVk1fQnJpZGdlL01NRFZNX0JyaWRnZS5pbmkiClZBUj0iL3Zhci9saWIvZHZzd2l0Y2gvZHZzL3Zhci50eHQiClBSRVNFVF9ESVI9Ii9ldGMvZHZzd2l0Y2gtbW9kZS1idXR0b25zIgoKZGllKCl7IGVjaG8gIkVSUk9SOiAkKiIgPiYyOyBleGl0IDE7IH0KW1sgJEVVSUQgLWVxIDAgXV0gfHwgZGllICJydW4gd2l0aCBzdWRvIgpbWyAtZiAiJElOSSIgXV0gfHwgZGllICJtaXNzaW5nICRJTkkiCgptb2RlPSJjaGVjayIKW1sgJHsxOi19ID09ICItLWluc3RhbGwiIF1dICYmIG1vZGU9Imluc3RhbGwiCltbICR7MTotfSA9PSAiLS1jaGVjayIgfHwgJHsxOi19ID09ICItLWluc3RhbGwiIHx8ICR7MTotfSA9PSAiIiBdXSB8fCBkaWUgInVzYWdlOiAkMCBbLS1jaGVja3wtLWluc3RhbGxdIgoKbmV0d29yaz0iJChhd2sgJwogIC9eXFtETVIgTmV0d29ya1xdL3tpbnNlYz0xO25leHR9IC9eXFsve2luc2VjPTB9CiAgaW5zZWMgJiYgL15bWzpzcGFjZTpdXSpBZGRyZXNzW1s6c3BhY2U6XV0qPS97c3ViKC9eW149XSo9LywiIik7IGdzdWIoL1tbOnNwYWNlOl1dLywiIik7IHByaW50OyBleGl0fQonICIkSU5JIikiCmNhc2UgIiRuZXR3b3JrIiBpbgogICpicmFuZG1laXN0ZXIqfCpyZXBlYXRlci5uZXR8KjMxMDIqfCozMTA0KikgZGVmYXVsdF9uZXQ9Qk07OwogICp0Z2lmKikgZGVmYXVsdF9uZXQ9VEdJRjs7CiAgKikgZGVmYXVsdF9uZXQ9VU5LTk9XTjs7CmVzYWMKCmdldHZhcigpeyBhd2sgLUY9IC12IGtleT0iJDEiICckMSA9PSBrZXkge3N1YigvXltePV0qPS8sIiIpOyBwcmludDsgZXhpdH0nICIkVkFSIjsgfQoKaWYgW1sgJG1vZGUgPT0gY2hlY2sgXV07IHRoZW4KICBlY2hvICJEVlN3aXRjaCBNb2RlIEJ1dHRvbnMgJFZFUlNJT04iCiAgZWNobyAiTU1EVk1fQnJpZGdlLmluaTogJElOSSIKICBlY2hvICJDdXJyZW50IERNUiBuZXR3b3JrOiAkZGVmYXVsdF9uZXQgKCRuZXR3b3JrKSIKICBbWyAtZiAiJFZBUiIgXV0gJiYgZWNobyAiRFZTd2l0Y2ggdmFyLnR4dDogZm91bmQiIHx8IGVjaG8gIkRWU3dpdGNoIHZhci50eHQ6IG5vdCBmb3VuZCIKICBlY2hvICJQQVNTOiBpbnN0YWxsZXIgcHJlcmVxdWlzaXRlcyBjaGVja2VkOyBubyBmaWxlcyBjaGFuZ2VkLiIKICBlY2hvICJCTSBhZGRyZXNzOiAkKGdldHZhciBibV9hZGRyZXNzKSIKICBlY2hvICJUR0lGIGFkZHJlc3M6ICQoZ2V0dmFyIHRnaWZfYWRkcmVzcykiCiAgZXhpdCAwCmZpCgpbWyAtZiAiJFZBUiIgXV0gfHwgZGllICJtaXNzaW5nICRWQVIiCmluc3RhbGwgLWQgLW0gNzAwIC1vIHJvb3QgLWcgcm9vdCAiJFBSRVNFVF9ESVIiCgpibV9hZGRyZXNzPSIkKGdldHZhciBibV9hZGRyZXNzKSI7IGJtX3BvcnQ9IiQoZ2V0dmFyIGJtX3BvcnQpIjsgYm1fcGFzc3dvcmQ9IiQoZ2V0dmFyIGJtX3Bhc3N3b3JkKSIKdGdpZl9hZGRyZXNzPSIkKGdldHZhciB0Z2lmX2FkZHJlc3MpIjsgdGdpZl9wb3J0PSIkKGdldHZhciB0Z2lmX3BvcnQpIjsgdGdpZl9wYXNzd29yZD0iJChnZXR2YXIgdGdpZl9wYXNzd29yZCkiCltbICRkZWZhdWx0X25ldCA9PSBCTSB8fCAkZGVmYXVsdF9uZXQgPT0gVEdJRiBdXSB8fCBkaWUgImN1cnJlbnQgRE1SIGFkZHJlc3MgaXMgbm90IHJlY29nbml6ZWQgYXMgQk0gb3IgVEdJRiIKY3AgLXAgIiRJTkkiICIkUFJFU0VUX0RJUi9NTURWTV9CcmlkZ2UuJGRlZmF1bHRfbmV0LmluaSIKYWx0ZXJuYXRlX25ldD1UR0lGOyBbWyAkZGVmYXVsdF9uZXQgPT0gVEdJRiBdXSAmJiBhbHRlcm5hdGVfbmV0PUJNCmlmIFtbICRhbHRlcm5hdGVfbmV0ID09IEJNIF1dOyB0aGVuCiAgW1sgLW4gIiRibV9hZGRyZXNzIiBdXSB8fCByZWFkIC1yIC1wICJCcmFuZE1laXN0ZXIgYWRkcmVzczogIiBibV9hZGRyZXNzCiAgW1sgLW4gIiRibV9wb3J0IiBdXSB8fCByZWFkIC1yIC1wICJCcmFuZE1laXN0ZXIgcG9ydDogIiBibV9wb3J0CiAgW1sgLW4gIiRibV9wYXNzd29yZCIgXV0gfHwgeyByZWFkIC1yIC1zIC1wICJCcmFuZE1laXN0ZXIgcGFzc3dvcmQ6ICIgYm1fcGFzc3dvcmQ7IGVjaG87IH0KZWxzZQogIFtbIC1uICIkdGdpZl9hZGRyZXNzIiBdXSB8fCByZWFkIC1yIC1wICJUR0lGIGFkZHJlc3M6ICIgdGdpZl9hZGRyZXNzCiAgW1sgLW4gIiR0Z2lmX3BvcnQiIF1dIHx8IHJlYWQgLXIgLXAgIlRHSUYgcG9ydDogIiB0Z2lmX3BvcnQKICBbWyAtbiAiJHRnaWZfcGFzc3dvcmQiIF1dIHx8IHsgcmVhZCAtciAtcyAtcCAiVEdJRiBwYXNzd29yZDogIiB0Z2lmX3Bhc3N3b3JkOyBlY2hvOyB9CmZpCgpbWyAtbiAiJGJtX2FkZHJlc3MiICYmIC1uICIkYm1fcG9ydCIgJiYgLW4gIiRibV9wYXNzd29yZCIgXV0gJiYgYm1fb2s9MSB8fCBibV9vaz0wCltbIC1uICIkdGdpZl9hZGRyZXNzIiAmJiAtbiAiJHRnaWZfcG9ydCIgJiYgLW4gIiR0Z2lmX3Bhc3N3b3JkIiBdXSAmJiB0Z2lmX29rPTEgfHwgdGdpZl9vaz0wCltbICRhbHRlcm5hdGVfbmV0ID09IEJNICYmICRibV9vayAhPSAxIF1dICYmIGVjaG8gIkJNIHByZXNldCBub3QgZW5hYmxlZDogcmVxdWlyZWQgQk0gZGF0YSB3YXMgbm90IHByb3ZpZGVkLiIKW1sgJGFsdGVybmF0ZV9uZXQgPT0gVEdJRiAmJiAkdGdpZl9vayAhPSAxIF1dICYmIGVjaG8gIlRHSUYgcHJlc2V0IG5vdCBlbmFibGVkOiByZXF1aXJlZCBUR0lGIGRhdGEgd2FzIG5vdCBwcm92aWRlZC4iCgpleHBvcnQgSU5JIFBSRVNFVF9ESVIgYWx0ZXJuYXRlX25ldCBibV9hZGRyZXNzIGJtX3BvcnQgYm1fcGFzc3dvcmQgdGdpZl9hZGRyZXNzIHRnaWZfcG9ydCB0Z2lmX3Bhc3N3b3JkIGJtX29rIHRnaWZfb2sKcHl0aG9uMyAtIDw8J1BZJwppbXBvcnQgb3MsIHJlLCBzaHV0aWwsIHRlbXBmaWxlCmluaT1vcy5lbnZpcm9uWydJTkknXTsgb3V0ZGlyPW9zLmVudmlyb25bJ1BSRVNFVF9ESVInXQp0ZXh0PW9wZW4oaW5pLCBlbmNvZGluZz0ndXRmLTgnKS5yZWFkKCkKaWYgbm90IHJlLnNlYXJjaChyJyg/bSleXFtETVIgTmV0d29ya1xdXHMqJCcsIHRleHQpOiByYWlzZSBTeXN0ZW1FeGl0KCdtaXNzaW5nIFtETVIgTmV0d29ya10gc2VjdGlvbicpCmRlZiBtYWtlKG5hbWUsIGFkZHJlc3MsIHBvcnQsIHBhc3N3b3JkKToKICAgIGxpbmVzPXRleHQuc3BsaXRsaW5lcyhUcnVlKTsgc3RhcnQ9bmV4dChpIGZvciBpLHggaW4gZW51bWVyYXRlKGxpbmVzKSBpZiByZS5tYXRjaChyJ15cW0RNUiBOZXR3b3JrXF1ccyokJyx4KSk7IGVuZD1uZXh0KChpIGZvciBpIGluIHJhbmdlKHN0YXJ0KzEsbGVuKGxpbmVzKSkgaWYgcmUubWF0Y2gocideXFsuKlxdXHMqJCcsbGluZXNbaV0pKSxsZW4obGluZXMpKQogICAgcmVwbGFjZW1lbnQ9eydhZGRyZXNzJzphZGRyZXNzLCdwb3J0Jzpwb3J0LCdwYXNzd29yZCc6cGFzc3dvcmR9CiAgICBmb3IgaSBpbiByYW5nZShzdGFydCsxLGVuZCk6CiAgICAgICAgbT1yZS5tYXRjaChyJ14oQWRkcmVzc3xQb3J0fFBhc3N3b3JkKShbIFx0XSo9WyBcdF0qKVteXHJcbl0qKFxyP1xuKT8kJyxsaW5lc1tpXSxyZS5JKQogICAgICAgIGlmIG06CiAgICAgICAgICAgIGtleT1tLmdyb3VwKDEpLmxvd2VyKCk7IGxpbmVzW2ldPW0uZ3JvdXAoMSkrbS5ncm91cCgyKStyZXBsYWNlbWVudFtrZXldKyhtLmdyb3VwKDMpIG9yICcnKQogICAgZGF0YT0nJy5qb2luKGxpbmVzKQogICAgZmQsdG1wPXRlbXBmaWxlLm1rc3RlbXAoZGlyPW91dGRpcik7IG9zLmNsb3NlKGZkKTsgb3Blbih0bXAsJ3cnLGVuY29kaW5nPSd1dGYtOCcsbmV3bGluZT0nJykud3JpdGUoZGF0YSk7IHNodXRpbC5jb3B5c3RhdChpbmksdG1wKTsgb3MuY2hvd24odG1wLG9zLnN0YXQoaW5pKS5zdF91aWQsb3Muc3RhdChpbmkpLnN0X2dpZCk7IG9zLmNobW9kKHRtcCxvcy5zdGF0KGluaSkuc3RfbW9kZSAmIDBvNzc3Nyk7IG9zLnJlcGxhY2UodG1wLG9zLnBhdGguam9pbihvdXRkaXIsJ01NRFZNX0JyaWRnZS4nK25hbWUrJy5pbmknKSkKaWYgb3MuZW52aXJvblsnYWx0ZXJuYXRlX25ldCddPT0nQk0nIGFuZCBvcy5lbnZpcm9uWydibV9vayddPT0nMSc6IG1ha2UoJ0JNJyxvcy5lbnZpcm9uWydibV9hZGRyZXNzJ10sb3MuZW52aXJvblsnYm1fcG9ydCddLG9zLmVudmlyb25bJ2JtX3Bhc3N3b3JkJ10pCmlmIG9zLmVudmlyb25bJ2FsdGVybmF0ZV9uZXQnXT09J1RHSUYnIGFuZCBvcy5lbnZpcm9uWyd0Z2lmX29rJ109PScxJzogbWFrZSgnVEdJRicsb3MuZW52aXJvblsndGdpZl9hZGRyZXNzJ10sb3MuZW52aXJvblsndGdpZl9wb3J0J10sb3MuZW52aXJvblsndGdpZl9wYXNzd29yZCddKQpQWQpjaG1vZCA3MDAgIiRQUkVTRVRfRElSIjsgY2hvd24gLVIgcm9vdDpyb290ICIkUFJFU0VUX0RJUiIKZWNobyAiUEFTUzogY3JlYXRlZCBhdmFpbGFibGUgQk0vVEdJRiBwcmVzZXRzIGluICRQUkVTRVRfRElSLiIK'
-write_payload /tmp/dmb-sudoers 'd3d3LWRhdGEgQUxMPShyb290KSBOT1BBU1NXRDogL3Vzci9sb2NhbC9zYmluL2R2c3dpdGNoLW1vZGUtYnV0dG9ucyBCTQp3d3ctZGF0YSBBTEw9KHJvb3QpIE5PUEFTU1dEOiAvdXNyL2xvY2FsL3NiaW4vZHZzd2l0Y2gtbW9kZS1idXR0b25zIFRHSUYKd3d3LWRhdGEgQUxMPShyb290KSBOT1BBU1NXRDogL3Vzci9sb2NhbC9zYmluL2R2c3dpdGNoLW1vZGUtYnV0dG9ucyBTVEZVCnd3dy1kYXRhIEFMTD0ocm9vdCkgTk9QQVNTV0Q6IC91c3IvbG9jYWwvc2Jpbi9kdnN3aXRjaC1tb2RlLWJ1dHRvbnMgWVNGCnd3dy1kYXRhIEFMTD0ocm9vdCkgTk9QQVNTV0Q6IC91c3IvbG9jYWwvc2Jpbi9kdnN3aXRjaC1tb2RlLWJ1dHRvbnMgUDI1Cnd3dy1kYXRhIEFMTD0ocm9vdCkgTk9QQVNTV0Q6IC91c3IvbG9jYWwvc2Jpbi9kdnN3aXRjaC1tb2RlLWJ1dHRvbnMgTlhETgp3d3ctZGF0YSBBTEw9KHJvb3QpIE5PUEFTU1dEOiAvdXNyL2xvY2FsL3NiaW4vZHZzd2l0Y2gtbW9kZS1idXR0b25zIERTVEFSCg=='
-install -o root -g root -m 755 /tmp/dmb-mode "$MODE_HELPER"
-install -o root -g root -m 755 /tmp/dmb-network "$NETWORK_HELPER"
-install -o root -g root -m 644 /tmp/dmb-endpoint "$ENDPOINT"
-install -o root -g root -m 440 /tmp/dmb-sudoers "$SUDOERS"
-install -o root -g root -m 755 /tmp/dmb-preset "$BASE/dvswitch-mode-buttons.sh"
+
+install -d -m 700 -o root -g root "$BACKUP" "$BASE"
+cp -a "$TARGET" "$BACKUP/index.php"
+for p in /usr/local/sbin/dvswitch-mode-buttons /usr/local/sbin/dvswitch-dmr-network /usr/share/dvswitch/dvswitch-mode-buttons.php /etc/sudoers.d/dvswitch-mode-buttons; do
+  [[ -e "$p" ]] && cp -a "$p" "$BACKUP/$(basename "$p")"
+done
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+repo_file(){ git show "$REPO_BASE:$1" > "$tmp/$(basename "$1")"; }
+repo_file dvswitch-mode-buttons
+repo_file dvswitch-dmr-network.sh
+repo_file dvswitch-mode-buttons.php
+repo_file dvswitch-mode-buttons.sh
+repo_file dvswitch-mode-buttons.sudoers
+git show "$DASH_BASE:install-dashboard-buttons.sh" > "$tmp/install-dashboard-buttons.sh"
+
+chmod 755 "$tmp/dvswitch-mode-buttons" "$tmp/dvswitch-dmr-network.sh" "$tmp/dvswitch-mode-buttons.sh" "$tmp/install-dashboard-buttons.sh"
+install -o root -g root -m 755 "$tmp/dvswitch-mode-buttons" /usr/local/sbin/dvswitch-mode-buttons
+install -o root -g root -m 755 "$tmp/dvswitch-dmr-network.sh" /usr/local/sbin/dvswitch-dmr-network
+install -o root -g root -m 644 "$tmp/dvswitch-mode-buttons.php" /usr/share/dvswitch/dvswitch-mode-buttons.php
+install -o root -g root -m 440 "$tmp/dvswitch-mode-buttons.sudoers" /etc/sudoers.d/dvswitch-mode-buttons
+
 rm -rf /var/lib/dvswitch-mode-buttons
-visudo -cf "$SUDOERS" >/dev/null || { echo "ERROR: sudoers validation failed" >&2; exit 1; }
-php -l "$ENDPOINT" >/dev/null || { echo "ERROR: PHP validation failed" >&2; exit 1; }
-"$BASE/dvswitch-mode-buttons.sh" --install
-rm -f /tmp/dmb-network /tmp/dmb-mode /tmp/dmb-endpoint /tmp/dmb-preset /tmp/dmb-sudoers "$BASE/dvswitch-mode-buttons.sh"
-export TARGET
-python3 - <<'PY'
-import os, shutil
+visudo -cf /etc/sudoers.d/dvswitch-mode-buttons >/dev/null || die 'sudoers validation failed'
+php -l /usr/share/dvswitch/dvswitch-mode-buttons.php >/dev/null || die 'endpoint PHP validation failed'
+
+python3 - "$TARGET" <<'PY'
+import re, sys
 from pathlib import Path
-p=Path(os.environ["TARGET"]); s=p.read_text()
-marker="<!-- DVSwitch-Mode-Buttons single-file v1 -->"
-block='''<!-- DVSwitch-Mode-Buttons single-file v1 -->
-<div id="dvs-mode-buttons" aria-label="Select Mode" style="position:fixed!important;left:max(8px,calc(50% - 500px))!important;top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:4px!important;text-align:center!important;z-index:9999!important"><div class="dvs-mode-buttons-title">Select Mode</div>
-<button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
-<style>#dvs-mode-buttons{position:fixed!important;left:max(8px,calc(50% - 500px))!important;top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:4px!important;text-align:center!important;z-index:9999!important}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px;white-space:nowrap}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}@media(max-width:1100px){#dvs-mode-buttons{position:fixed!important;left:8px!important;top:50%!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important}}</style>
-<script>(function(){const box=document.getElementById("dvs-mode-buttons"),buttons=[...box.querySelectorAll("button")];function select(b){buttons.forEach(x=>x.classList.toggle("selected",x===b))}buttons.forEach(b=>b.addEventListener("click",async()=>{buttons.forEach(x=>x.disabled=true);try{const r=await fetch("/dvswitch/dvswitch-mode-buttons.php?mode="+encodeURIComponent(b.dataset.mode)),j=await r.json();if(!j.ok)throw new Error(j.output||j.error||"switch failed");select(b)}catch(e){alert("Mode switch failed: "+e.message)}finally{buttons.forEach(x=>x.disabled=false)}}))})();</script>'''
-import re
-pattern=r'\s*(?:<!--\s*DVSwitch-Mode-Buttons.*?-->\s*)?<div id=["\']dvs-mode-buttons["\'].*?</script>\s*'
-cleaned,count=re.subn(pattern,"\n",s,count=0,flags=re.S|re.I)
-if count:
-    s=cleaned
-pos=s.rfind("</body>")
-if pos<0: raise SystemExit("ERROR: </body> not found")
-s=s[:pos]+block+s[pos:]
-tmp=p.with_name(p.name+".tmp-mode-buttons"); tmp.write_text(s); shutil.copystat(p,tmp); st=os.stat(p); os.chown(tmp,st.st_uid,st.st_gid); os.replace(tmp,p)
+p=Path(sys.argv[1]); s=p.read_text()
+s,n=re.subn(r'\s*(?:<!--\s*DVSwitch-Mode-Buttons.*?-->\s*)?<div id=["\']dvs-mode-buttons["\'].*?</script>\s*', '\n', s, flags=re.I|re.S)
+if n: p.write_text(s)
 PY
-bash -n "$MODE_HELPER"; bash -n "$NETWORK_HELPER"
-echo "PASS: seven dashboard buttons and original mode switching installed"
-echo "PASS: no mode-target state, TG/ref persistence, Tx display, refresh state, or startup service installed"
+
+(cd "$tmp" && ./dvswitch-mode-buttons.sh --install)
+"$tmp/install-dashboard-buttons.sh"
+bash -n /usr/local/sbin/dvswitch-mode-buttons /usr/local/sbin/dvswitch-dmr-network
+php -l /usr/share/dvswitch/dvswitch-mode-buttons.php >/dev/null
+echo "PASS: repository files installed unchanged."
+echo "PASS: dashboard buttons installed above the RX Monitor anchor."
+echo "PASS: no TG/ref persistence, target state, or startup service installed."
 echo "PASS: backup: $BACKUP"
