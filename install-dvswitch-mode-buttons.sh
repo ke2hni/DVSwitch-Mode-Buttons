@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 TARGET=/usr/share/dvswitch/index.php
 REPO_BASE=3e013b4
-DASH_BASE=516a05c
+DASH_BASE=bdd1641
 BASE=/etc/dvswitch-mode-buttons
 BACKUP=/var/backups/dvswitch-mode-buttons/install-$(date +%Y%m%d-%H%M%S)
 
