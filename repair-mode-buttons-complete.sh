@@ -11,7 +11,7 @@ BACKUP_DIR=/var/backups/dvswitch-mode-buttons
 
 python3 - "$HELPER" "$DMR_HELPER" "$BACKUP_DIR" <<'PY'
 import os,sys,tempfile,shutil,time
-for path in sys.argv[1:]:
+for path in sys.argv[1:3]:
     raw=open(path,'rb').read(); text=raw.replace(b'\r\n',b'\n').decode()
     old='echo "PASS: DVSwitch mode selected: $mode"'
     if old not in text: continue
