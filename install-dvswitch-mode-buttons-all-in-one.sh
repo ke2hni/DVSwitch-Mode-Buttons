@@ -212,4 +212,5 @@ systemctl restart apache2 || die 'Apache restart failed after dashboard installa
 
 echo 'PASS: unified dashboard, refresh, endpoint, helper, sudoers, and BM/TGIF installer installed.'
 echo 'PASS: DMR helper updates the Mods network state and does not modify Analog_Bridge.ini.'
+
 echo 'NOTICE: If the DVSwitch dashboard was already open, refresh that browser tab (press F5) to display the new buttons.'
