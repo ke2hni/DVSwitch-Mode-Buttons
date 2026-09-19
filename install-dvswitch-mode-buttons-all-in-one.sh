@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DVSwitch Mode Buttons all-in-one installer v2
+# DVSwitch Mode Buttons all-in-one installer v3
 set -Eeuo pipefail
 
 TARGET=/usr/share/dvswitch/index.php
@@ -207,6 +207,8 @@ else
 fi
 
 dashboard_complete || die 'final dashboard block or refresh code missing'
+command -v systemctl >/dev/null 2>&1 || die 'systemctl is required to refresh Apache'
+systemctl restart apache2 || die 'Apache restart failed after dashboard installation'
 
 echo 'PASS: unified dashboard, refresh, endpoint, helper, sudoers, and BM/TGIF installer installed.'
 echo 'PASS: DMR helper updates the Mods network state and does not modify Analog_Bridge.ini.'
