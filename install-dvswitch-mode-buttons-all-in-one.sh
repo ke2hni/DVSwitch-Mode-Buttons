@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
+# DVSwitch Mode Buttons all-in-one installer v2
 set -Eeuo pipefail
 
 TARGET=/usr/share/dvswitch/index.php
+MODE_HELPER=/usr/local/sbin/dvswitch-mode-buttons
+DMR_HELPER=/usr/local/sbin/dvswitch-dmr-network
+ENDPOINT=/usr/share/dvswitch/dvswitch-mode-buttons.php
+SUDOERS=/etc/sudoers.d/dvswitch-mode-buttons
+PRESET_DIR=/etc/dvswitch-mode-buttons
 BACKEND_BASE=3e013b4
 HELPER_BASE=32d64a2
 ENDPOINT_BASE=25e144a
@@ -40,8 +46,7 @@ if [[ $1 == --check ]]; then
   [[ -f /var/lib/dvswitch/dvs/var.txt ]] || die 'missing /var/lib/dvswitch/dvs/var.txt'
   [[ -x /opt/MMDVM_Bridge/dvswitch.sh ]] || die 'missing /opt/MMDVM_Bridge/dvswitch.sh'
   [[ -f /opt/MMDVM_Bridge/MMDVM_Bridge.ini ]] || die 'missing /opt/MMDVM_Bridge/MMDVM_Bridge.ini'
-  echo 'PASS: unified repository sources and node prerequisites verified; no files changed.'
-  exit 0
+  echo 'PASS: unified repository sources and node prerequisites verified.'
 fi
 
 tmp=$(mktemp -d)
@@ -114,20 +119,64 @@ show "$BACKEND_BASE" dvswitch-mode-buttons.sudoers
 
 patch_dmr_helper
 
-install -o root -g root -m 755 "$tmp/dvswitch-mode-buttons.$HELPER_BASE" /usr/local/sbin/dvswitch-mode-buttons
-install -o root -g root -m 755 "$tmp/dvswitch-dmr-network.sh.$BACKEND_BASE" /usr/local/sbin/dvswitch-dmr-network
-install -o root -g root -m 644 "$tmp/dvswitch-mode-buttons.php.$ENDPOINT_BASE" /usr/share/dvswitch/dvswitch-mode-buttons.php
-install -o root -g root -m 440 "$tmp/dvswitch-mode-buttons.sudoers.$BACKEND_BASE" /etc/sudoers.d/dvswitch-mode-buttons
+dashboard_complete(){
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->' "$TARGET" || return 1
+  grep -qF 'background-color:#008000' "$TARGET" || return 1
+  grep -qF "fetch('/dvswitch/dvswitch-mode-buttons.php?status=1" "$TARGET" || return 1
+  grep -qF "fetch('/dvswitch/dvswitch-mode-buttons.php?mode=" "$TARGET" || return 1
+}
 
-visudo -cf /etc/sudoers.d/dvswitch-mode-buttons >/dev/null || die 'sudoers validation failed'
-php -l /usr/share/dvswitch/dvswitch-mode-buttons.php >/dev/null || die 'endpoint PHP validation failed'
-bash -n /usr/local/sbin/dvswitch-mode-buttons /usr/local/sbin/dvswitch-dmr-network
-grep -qF 'update_state "$network"' /usr/local/sbin/dvswitch-dmr-network || die 'DMR state update is missing'
-if grep -qF 'Analog_Bridge.ini' /usr/local/sbin/dvswitch-dmr-network; then
+backend_complete(){
+  [[ -f "$MODE_HELPER" ]] && cmp -s "$tmp/dvswitch-mode-buttons.$HELPER_BASE" "$MODE_HELPER" || return 1
+  [[ -f "$DMR_HELPER" ]] && cmp -s "$tmp/dvswitch-dmr-network.sh.$BACKEND_BASE" "$DMR_HELPER" || return 1
+  [[ -f "$ENDPOINT" ]] && cmp -s "$tmp/dvswitch-mode-buttons.php.$ENDPOINT_BASE" "$ENDPOINT" || return 1
+  [[ -f "$SUDOERS" ]] && cmp -s "$tmp/dvswitch-mode-buttons.sudoers.$BACKEND_BASE" "$SUDOERS" || return 1
+  [[ -f "$PRESET_DIR/MMDVM_Bridge.BM.ini" && -f "$PRESET_DIR/MMDVM_Bridge.TGIF.ini" ]] || return 1
+}
+
+installation_complete(){
+  backend_complete && dashboard_complete
+}
+
+if [[ $1 == --check ]]; then
+  if installation_complete; then
+    echo 'ALREADY INSTALLED: unified DVSwitch mode buttons are complete; no files changed.'
+  else
+    partial=0
+    for path in "$MODE_HELPER" "$DMR_HELPER" "$ENDPOINT" "$SUDOERS" "$PRESET_DIR/MMDVM_Bridge.BM.ini" "$PRESET_DIR/MMDVM_Bridge.TGIF.ini"; do
+      [[ -e "$path" ]] && partial=1
+    done
+    grep -qF 'DVSwitch-Mode-Buttons' "$TARGET" 2>/dev/null && partial=1 || true
+    if (( partial )); then
+      echo 'PASS: prerequisites verified; partial installation detected; --install will complete or upgrade it.'
+    else
+      echo 'PASS: prerequisites verified; ready for first installation; no files changed.'
+    fi
+  fi
+  exit 0
+fi
+
+if installation_complete; then
+  echo 'ALREADY INSTALLED: unified DVSwitch mode buttons are complete.'
+  exit 0
+fi
+
+install -o root -g root -m 755 "$tmp/dvswitch-mode-buttons.$HELPER_BASE" "$MODE_HELPER"
+install -o root -g root -m 755 "$tmp/dvswitch-dmr-network.sh.$BACKEND_BASE" "$DMR_HELPER"
+install -o root -g root -m 644 "$tmp/dvswitch-mode-buttons.php.$ENDPOINT_BASE" "$ENDPOINT"
+install -o root -g root -m 440 "$tmp/dvswitch-mode-buttons.sudoers.$BACKEND_BASE" "$SUDOERS"
+
+visudo -cf "$SUDOERS" >/dev/null || die 'sudoers validation failed'
+php -l "$ENDPOINT" >/dev/null || die 'endpoint PHP validation failed'
+bash -n "$MODE_HELPER" "$DMR_HELPER"
+grep -qF 'update_state "$network"' "$DMR_HELPER" || die 'DMR state update is missing'
+if grep -qF 'Analog_Bridge.ini' "$DMR_HELPER"; then
   die 'DMR helper must not modify Analog_Bridge.ini'
 fi
 
-bash "$tmp/dvswitch-mode-buttons.sh.$BACKEND_BASE" --install
+if [[ ! -f "$PRESET_DIR/MMDVM_Bridge.BM.ini" || ! -f "$PRESET_DIR/MMDVM_Bridge.TGIF.ini" ]]; then
+  bash "$tmp/dvswitch-mode-buttons.sh.$BACKEND_BASE" --install
+fi
 
 run_dashboard_revision(){
   local commit=$1
@@ -157,10 +206,7 @@ else
   run_dashboard_revision "$DASHBOARD_BASE" install-dashboard-buttons-refresh.sh
 fi
 
-grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->' "$TARGET" || die 'final dashboard block missing'
-grep -qF 'background-color:#008000' "$TARGET" || die 'selected color missing'
-grep -qF "fetch('/dvswitch/dvswitch-mode-buttons.php?status=1" "$TARGET" || die 'refresh code missing'
-grep -qF "fetch('/dvswitch/dvswitch-mode-buttons.php?mode=" "$TARGET" || die 'mode-switch request missing'
+dashboard_complete || die 'final dashboard block or refresh code missing'
 
 echo 'PASS: unified dashboard, refresh, endpoint, helper, sudoers, and BM/TGIF installer installed.'
 echo 'PASS: DMR helper updates the Mods network state and does not modify Analog_Bridge.ini.'
