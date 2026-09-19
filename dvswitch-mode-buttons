@@ -15,19 +15,19 @@ case "$mode" in
   DSTAR|STFU|YSF|P25|NXDN) [[ -x "$MODE_CMD" ]] || die "missing $MODE_CMD"; "$MODE_CMD" mode "$mode" || exit 1 ;;
   *) die "unsupported mode: $1" ;;
 esac
-install -d -m 700 -o root -g root "$STATE_DIR"
+install -d -m 755 -o root -g root "$STATE_DIR"
 printf '%s\n' "$mode" > "$STATE_FILE"
-chown root:root "$STATE_FILE"; chmod 600 "$STATE_FILE"
+chown root:root "$STATE_FILE"; chmod 644 "$STATE_FILE"
 if [[ "$mode" == BM || "$mode" == TGIF ]]; then
   printf '%s\n' "$mode" > "$DMR_NETWORK_FILE"
-  chown root:root "$DMR_NETWORK_FILE"; chmod 600 "$DMR_NETWORK_FILE"
+  chown root:root "$DMR_NETWORK_FILE"; chmod 644 "$DMR_NETWORK_FILE"
   printf '%s\n' "$mode" > "$DMR_CARD_MODE_FILE"
-  chown root:root "$DMR_CARD_MODE_FILE"; chmod 600 "$DMR_CARD_MODE_FILE"
+  chown root:root "$DMR_CARD_MODE_FILE"; chmod 644 "$DMR_CARD_MODE_FILE"
 elif [[ "$mode" == STFU ]]; then
   printf '%s\n' BM > "$DMR_NETWORK_FILE"
-  chown root:root "$DMR_NETWORK_FILE"; chmod 600 "$DMR_NETWORK_FILE"
+  chown root:root "$DMR_NETWORK_FILE"; chmod 644 "$DMR_NETWORK_FILE"
   printf '%s\n' STFU > "$DMR_CARD_MODE_FILE"
-  chown root:root "$DMR_CARD_MODE_FILE"; chmod 600 "$DMR_CARD_MODE_FILE"
+  chown root:root "$DMR_CARD_MODE_FILE"; chmod 644 "$DMR_CARD_MODE_FILE"
 fi
 if [[ -x /usr/local/sbin/dvswitch-mode-targets ]]; then
   target=$(/usr/local/sbin/dvswitch-mode-targets get "$mode" 2>/dev/null || true)
