@@ -57,6 +57,18 @@ The installer verifies these existing DVSwitch paths:
 
 The repository history must be available because the manager installs the verified source revisions directly from Git.
 
+### `var.txt` requirements
+
+The backend preset installer reads the BM/TGIF values from:
+
+```text
+/var/lib/dvswitch/dvs/var.txt
+```
+
+For each network that is not already represented by the live `MMDVM_Bridge.ini`, the installer requires an address, port, and password. If one or more values are missing, the installer prompts for them. No value is guessed. Leaving a prompt blank prevents that network preset from being created, and the combined manager stops with an incomplete-preset error instead of claiming that installation succeeded.
+
+If `var.txt` itself is missing, installation stops immediately with a clear missing-file error.
+
 ## Quick install
 
 ```bash

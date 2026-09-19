@@ -305,6 +305,10 @@ if [[ ! -f "$PRESET_DIR/MMDVM_Bridge.BM.ini" || ! -f "$PRESET_DIR/MMDVM_Bridge.T
   bash "$tmp/dvswitch-mode-buttons.sh.$BACKEND_BASE" --install
 fi
 
+if [[ ! -f "$PRESET_DIR/MMDVM_Bridge.BM.ini" || ! -f "$PRESET_DIR/MMDVM_Bridge.TGIF.ini" ]]; then
+  die 'BM/TGIF preset creation is incomplete; provide the missing BM/TGIF values in /var/lib/dvswitch/dvs/var.txt or answer the installer prompts, then rerun --install'
+fi
+
 run_dashboard_revision(){
   local commit=$1
   local file=${2:-install-dashboard-buttons.sh}
