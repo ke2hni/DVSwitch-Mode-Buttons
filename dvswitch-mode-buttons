@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -u
+MODE_CMD=/opt/MMDVM_Bridge/dvswitch.sh
+NETWORK_HELPER=/usr/local/sbin/dvswitch-dmr-network
+STATE_DIR=/var/lib/dvswitch-mode-buttons
+STATE_FILE=$STATE_DIR/current-mode
+die(){ echo "ERROR: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die 'run with sudo'
+[[ $# -eq 1 ]] || die 'usage: BM|TGIF|STFU|YSF|P25|NXDN|DSTAR'
+mode="${1^^}"
+case "$mode" in
+  BM|TGIF) [[ -x "$NETWORK_HELPER" ]] || die "missing $NETWORK_HELPER"; "$NETWORK_HELPER" "$mode" || exit 1 ;;
+  DSTAR|STFU|YSF|P25|NXDN) [[ -x "$MODE_CMD" ]] || die "missing $MODE_CMD"; "$MODE_CMD" mode "$mode" || exit 1 ;;
+  *) die "unsupported mode: $1" ;;
+esac
+install -d -m 700 -o root -g root "$STATE_DIR"
+printf '%s\n' "$mode" > "$STATE_FILE"
+chown root:root "$STATE_FILE"; chmod 600 "$STATE_FILE"
+if [[ -x /usr/local/sbin/dvswitch-mode-targets ]]; then
+  target=$(/usr/local/sbin/dvswitch-mode-targets get "$mode" 2>/dev/null || true)
+  [[ -z "$target" ]] || "$MODE_CMD" tune "$target" || true
+fi
+echo "PASS: DVSwitch mode selected: $mode"

@@ -3,6 +3,7 @@ set -u
 
 VERSION="1.0.0-test4"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
+ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
 PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
 LEGACY_PRESET_DIR="/etc/dvswitch-mode-buttons"
@@ -39,6 +40,7 @@ if [[ $mode == check ]]; then
 fi
 
 [[ -f "$VAR" ]] || die "missing $VAR"
+[[ -f "$ANALOG_INI" ]] || die "missing $ANALOG_INI"
 install -d -m 700 -o root -g root "$PRESET_DIR"
 for preset in MMDVM_Bridge.BM.ini MMDVM_Bridge.TGIF.ini Analog_Bridge.BM.ini Analog_Bridge.TGIF.ini; do
   if [[ -f "$LEGACY_PRESET_DIR/$preset" && ! -f "$PRESET_DIR/$preset" ]]; then
@@ -51,6 +53,10 @@ tgif_address="$(getvar tgif_address)"; tgif_port="$(getvar tgif_port)"; tgif_pas
 [[ $default_net == BM || $default_net == TGIF ]] || die "current DMR address is not recognized as BM or TGIF"
 cp -p "$INI" "$PRESET_DIR/MMDVM_Bridge.$default_net.ini"
 alternate_net=TGIF; [[ $default_net == TGIF ]] && alternate_net=BM
+current_tg="$(sed -nE '/^\[AMBE_AUDIO\][[:space:]]*$/,/^\[/ s/^[[:space:]]*txTg[[:space:]]*=[[:space:]]*([^;#[:space:]]+).*$/\1/ip' "$ANALOG_INI")"
+[[ -n "$current_tg" ]] || die "current Analog_Bridge txTg is empty"
+read -r -p "$alternate_net Analog_Bridge txTg for boot: " alternate_tg
+[[ "$alternate_tg" =~ ^[0-9]+$ ]] || die 'Analog_Bridge txTg must be numeric'
 if [[ $alternate_net == BM ]]; then
   [[ -n "$bm_address" ]] || read -r -p "BrandMeister address: " bm_address
   [[ -n "$bm_port" ]] || read -r -p "BrandMeister port: " bm_port
@@ -66,10 +72,10 @@ fi
 [[ $alternate_net == BM && $bm_ok != 1 ]] && echo "BM preset not enabled: required BM data was not provided."
 [[ $alternate_net == TGIF && $tgif_ok != 1 ]] && echo "TGIF preset not enabled: required TGIF data was not provided."
 
-export INI PRESET_DIR alternate_net bm_address bm_port bm_password tgif_address tgif_port tgif_password bm_ok tgif_ok
+export INI ANALOG_INI PRESET_DIR default_net alternate_net current_tg alternate_tg bm_address bm_port bm_password tgif_address tgif_port tgif_password bm_ok tgif_ok
 python3 - <<'PY'
 import os, re, shutil, tempfile
-ini=os.environ['INI']; outdir=os.environ['PRESET_DIR']
+ini=os.environ['INI']; analog=os.environ['ANALOG_INI']; outdir=os.environ['PRESET_DIR']
 text=open(ini, encoding='utf-8').read()
 if not re.search(r'(?m)^\[DMR Network\]\s*$', text): raise SystemExit('missing [DMR Network] section')
 def make(name, address, port, password):
@@ -83,6 +89,19 @@ def make(name, address, port, password):
     fd,tmp=tempfile.mkstemp(dir=outdir); os.close(fd); open(tmp,'w',encoding='utf-8',newline='').write(data); shutil.copystat(ini,tmp); os.chown(tmp,os.stat(ini).st_uid,os.stat(ini).st_gid); os.chmod(tmp,os.stat(ini).st_mode & 0o7777); os.replace(tmp,os.path.join(outdir,'MMDVM_Bridge.'+name+'.ini'))
 if os.environ['alternate_net']=='BM' and os.environ['bm_ok']=='1': make('BM',os.environ['bm_address'],os.environ['bm_port'],os.environ['bm_password'])
 if os.environ['alternate_net']=='TGIF' and os.environ['tgif_ok']=='1': make('TGIF',os.environ['tgif_address'],os.environ['tgif_port'],os.environ['tgif_password'])
+
+analog_text=open(analog, encoding='utf-8', newline='').read()
+section=re.search(r'(?ms)^\[AMBE_AUDIO\]\s*\n(.*?)(?=^\[|\Z)', analog_text)
+line=re.compile(r'^(\s*txTg\s*=\s*)([^;#\r\n]+)(.*)$', re.I|re.M)
+if not section or len(line.findall(section.group(1))) != 1: raise SystemExit('expected exactly one txTg in [AMBE_AUDIO]')
+def analog_preset(name, value):
+    body=line.sub(lambda m: m.group(1)+value+m.group(3), section.group(1), count=1)
+    data=analog_text[:section.start(1)]+body+analog_text[section.end(1):]
+    fd,tmp=tempfile.mkstemp(dir=outdir); os.close(fd)
+    with open(tmp,'w',encoding='utf-8',newline='') as f: f.write(data)
+    shutil.copystat(analog,tmp); st=os.stat(analog); os.chown(tmp,st.st_uid,st.st_gid); os.replace(tmp,os.path.join(outdir,'Analog_Bridge.'+name+'.ini'))
+analog_preset(os.environ['default_net'], os.environ['current_tg'])
+analog_preset(os.environ['alternate_net'], os.environ['alternate_tg'])
 PY
 chmod 700 "$PRESET_DIR"; chown -R root:root "$PRESET_DIR"
 echo "PASS: created available BM/TGIF presets in $PRESET_DIR."
