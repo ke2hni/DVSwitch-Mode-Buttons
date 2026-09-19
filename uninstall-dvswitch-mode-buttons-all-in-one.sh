@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# DVSwitch Mode Buttons all-in-one uninstaller v2
 set -Eeuo pipefail
 
 TARGET=/usr/share/dvswitch/index.php
@@ -61,18 +62,19 @@ fi
 stamp=$(date +%Y%m%d-%H%M%S)
 backup="$BACKUP_ROOT/uninstall-$stamp"
 install -d -o root -g root -m 0700 "$backup"
+install -d -o root -g root -m 0700 "$backup/files" "$backup/directories"
 
-cp -a -- "$TARGET" "$backup/index.php"
+cp -a -- "$TARGET" "$backup/files/index.php"
 for path in "$MODE_HELPER" "$DMR_HELPER" "$ENDPOINT" "$SUDOERS"; do
   if [[ -e "$path" || -L "$path" ]]; then
-    cp -a -- "$path" "$backup/$(basename "$path")"
+    cp -a -- "$path" "$backup/files/$(basename "$path")"
   fi
 done
 if [[ -d "$PRESET_DIR" && ! -L "$PRESET_DIR" ]]; then
-  cp -a -- "$PRESET_DIR" "$backup/"
+  cp -a -- "$PRESET_DIR" "$backup/directories/dvswitch-mode-buttons"
 fi
 if [[ -d "$MODE_STATE_DIR" && ! -L "$MODE_STATE_DIR" ]]; then
-  cp -a -- "$MODE_STATE_DIR" "$backup/"
+  cp -a -- "$MODE_STATE_DIR" "$backup/directories/dvswitch-mode-buttons-state"
 fi
 
 TARGET_FILE="$TARGET" python3 - <<'PY'
