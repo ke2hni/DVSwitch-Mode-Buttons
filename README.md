@@ -1,196 +1,69 @@
 # DVSwitch Mode Buttons
 
-<div align="center">
+Seven-mode dashboard selection for DVSwitch: **BM · TGIF · STFU · YSF · P25 · NXDN · D-Star**.
 
-## Seven-mode dashboard selection for DVSwitch
+## Installer
 
-**BrandMeister · TGIF · STFU · YSF · P25 · NXDN · D-Star**
+`dvswitch-mode-buttons.sh` is the primary installer. It creates the BM/TGIF presets and installs the complete tested mode-button path:
 
-One manager script installs, upgrades, checks, and removes the complete mode-button modification.
+- BM/TGIF MMDVM Bridge and Analog Bridge preset switching.
+- Per-mode target persistence.
+- Standalone DMR Master card rendering for BM, TGIF, and STFU.
+- STFU friendly-name lookup using the BM talkgroup list.
+- Friendly-name wrapping inside the DMR card.
+- Apache-readable DMR card state that remains writable only by root.
 
-</div>
-
----
-
-## What this adds
-
-DVSwitch Mode Buttons adds a centered horizontal button bar directly below the dashboard title and above the **RX Monitor** button.
-
-| Mode | Function |
-|---|---|
-| **BM** | Select the BrandMeister DMR network |
-| **TGIF** | Select the TGIF DMR network |
-| **STFU** | Select STFU |
-| **YSF** | Select YSF |
-| **P25** | Select P25 |
-| **NXDN** | Select NXDN |
-| **D-Star** | Select D-Star |
-
-The selected mode is highlighted in green and restored after a dashboard refresh by reading live DVSwitch status.
-
-## Features
-
-- One menu-driven installer and uninstaller.
-- Completes or upgrades partial installations.
-- Preserves the tested dashboard location and button colors.
-- Uses the repository’s verified mode-switching helpers and endpoint.
-- Supports BM/TGIF preset creation and network switching.
-- Restarts the required DVSwitch services after a BM/TGIF network change.
-- Updates the DVSwitch-Mods DMR network state when that state file already exists.
-- Does **not** modify `Analog_Bridge.ini`.
-- Does **not** add TG/ref persistence, a startup service, or Local Activity changes.
-- Creates uninstall backups under `/var/backups/dvswitch-mode-buttons/`.
-- Validates Bash, PHP, sudoers, dashboard, and DMR-helper requirements.
+The standalone DMR card is self-contained and does not require the `DVSwitch-Mods` repository.
 
 ## Requirements
 
-Run the manager as root from a checked-out copy of this repository on a DVSwitch node.
-
-The installer verifies these existing DVSwitch paths:
+Run from a configured DVSwitch node as root. The installer requires:
 
 ```text
-/usr/share/dvswitch/index.php
-/var/lib/dvswitch/dvs/var.txt
-/opt/MMDVM_Bridge/dvswitch.sh
 /opt/MMDVM_Bridge/MMDVM_Bridge.ini
-```
-
-The repository history must be available because the manager installs the verified source revisions directly from Git.
-
-### `var.txt` requirements
-
-The backend preset installer reads the BM/TGIF values from:
-
-```text
+/opt/MMDVM_Bridge/dvswitch.sh
+/opt/Analog_Bridge/Analog_Bridge.ini
 /var/lib/dvswitch/dvs/var.txt
-```
-
-For each network that is not already represented by the live `MMDVM_Bridge.ini`, the installer requires an address, port, and password. If one or more values are missing, the installer prompts for them. No value is guessed. Leaving a prompt blank prevents that network preset from being created, and the combined manager stops with an incomplete-preset error instead of claiming that installation succeeded.
-
-If `var.txt` itself is missing, installation stops immediately with a clear missing-file error.
-
-## Quick install
-
-```bash
-cd ~/DVSwitch-Mode-Buttons
-chmod +x dvswitch-mode-buttons.sh
-sudo ./dvswitch-mode-buttons.sh
-```
-
-Choose:
-
-```text
-1) Install / upgrade
-2) Uninstall
-3) Exit
-```
-
-After installation, if the dashboard was already open, refresh that browser tab with **F5** so the new buttons appear.
-
-## Recommended check first
-
-The check mode makes no changes:
-
-```bash
-cd ~/DVSwitch-Mode-Buttons
-sudo ./dvswitch-mode-buttons.sh --check
-```
-
-A clean node reports:
-
-```text
-PASS: prerequisites verified; ready for first installation; no files changed.
-```
-
-A complete installation reports:
-
-```text
-ALREADY INSTALLED: unified DVSwitch mode buttons are complete; no files changed.
-```
-
-A partial or older installation is detected and reported as ready for completion or upgrade.
-
-## Direct commands
-
-The menu is the normal interface, but direct administrative commands are also supported:
-
-```bash
-# Verify without changing files
-sudo ./dvswitch-mode-buttons.sh --check
-
-# Install or upgrade
-sudo ./dvswitch-mode-buttons.sh --install
-
-# Remove the modification
-sudo ./dvswitch-mode-buttons.sh --uninstall
-```
-
-## Installed components
-
-```text
-/usr/local/sbin/dvswitch-mode-buttons
-/usr/local/sbin/dvswitch-dmr-network
-/usr/share/dvswitch/dvswitch-mode-buttons.php
-/etc/sudoers.d/dvswitch-mode-buttons
-/etc/dvswitch-mode-buttons/
-```
-
-The dashboard block is installed in:
-
-```text
 /usr/share/dvswitch/index.php
+/usr/share/dvswitch/include/status.php
 ```
 
-## Uninstall behavior
+BM/TGIF values are read from `var.txt`; missing credentials are requested interactively and never guessed.
 
-The uninstall option removes only the mode-button modification:
+## Check and install
 
-- Dashboard mode-button block.
-- Mode-switch helpers.
-- Dashboard endpoint.
-- Mode-button sudoers file.
-- BM/TGIF preset directory.
-- Mode-button state directory.
+```bash
+cd ~/DVSwitch-Mode-Buttons
+sudo ./dvswitch-mode-buttons.sh --check
+sudo ./dvswitch-mode-buttons.sh --install
+```
 
-Affected files and directories are backed up under a timestamped directory in:
+The check makes no changes. Installation also validates PHP syntax and restarts Apache.
+
+## Installed state and backups
 
 ```text
+/etc/dvswitch-mode-buttons/dmr-presets/
+/usr/local/sbin/dvswitch-mode-buttons
+/usr/local/sbin/dvswitch-mode-targets
+/usr/local/sbin/dvswitch-dmr-network
+/var/lib/dvswitch-mode-buttons/
 /var/backups/dvswitch-mode-buttons/
 ```
 
-The dashboard is validated after removal, and unrelated DVSwitch files are preserved.
+The state directory is `755` so Apache can read the card state. State files are root-owned; `mode-targets.json` remains private at `600`.
 
 ## Safety boundaries
 
-This project is limited to dashboard mode selection and required BM/TGIF network switching support.
+This repository does not modify `node68425` remotely, individual network cards, Local Activity rendering, or unrelated DVSwitch-Mods changes. It does not require DVSwitch-Mods to be installed.
 
-It does not:
-
-- Replace or edit `/opt/Analog_Bridge/Analog_Bridge.ini`.
-- Modify individual network cards.
-- Modify Gateway Activity or Local Activity rendering.
-- Install a systemd startup service.
-- Add last-target TG/ref persistence.
-- Replace the DVSwitch-Mods repository.
-
-## Testing order
+Test in this order:
 
 ```text
 pi4test → pi5test → node3040 → node68425
 ```
 
-Do not install on the production node until the test nodes have passed.
-
-## Repository workflow
-
-```bash
-cd ~/DVSwitch-Mode-Buttons
-git pull --ff-only
-sudo ./dvswitch-mode-buttons.sh --check
-sudo ./dvswitch-mode-buttons.sh --install
-```
-
-Keep the manager executable and stored with Unix LF line endings.
+Production testing requires explicit authorization.
 
 ## License
 

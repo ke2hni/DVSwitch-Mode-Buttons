@@ -105,3 +105,22 @@ analog_preset(os.environ['alternate_net'], os.environ['alternate_tg'])
 PY
 chmod 700 "$PRESET_DIR"; chown -R root:root "$PRESET_DIR"
 echo "PASS: created available BM/TGIF presets in $PRESET_DIR."
+
+install -o root -g root -m 755 dvswitch-mode-buttons /usr/local/sbin/dvswitch-mode-buttons
+install -o root -g root -m 755 dvswitch-mode-targets /usr/local/sbin/dvswitch-mode-targets
+install -o root -g root -m 755 dvswitch-dmr-network.sh /usr/local/sbin/dvswitch-dmr-network
+
+./install-mode-target-persistence.sh
+./install-standalone-dmr-master-card.sh
+install -d /var/lib/dvswitch-mode-buttons
+chown root:root /var/lib/dvswitch-mode-buttons
+chmod 755 /var/lib/dvswitch-mode-buttons
+for state_file in current-mode last-dmr-card-mode last-dmr-network; do
+  if [[ -e "/var/lib/dvswitch-mode-buttons/$state_file" ]]; then
+    chown root:root "/var/lib/dvswitch-mode-buttons/$state_file"
+    chmod 644 "/var/lib/dvswitch-mode-buttons/$state_file"
+  fi
+done
+php -l /usr/share/dvswitch/include/status.php
+systemctl restart apache2
+echo "PASS: mode helpers, target persistence, standalone DMR card, and permissions installed."

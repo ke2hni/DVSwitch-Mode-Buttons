@@ -85,7 +85,7 @@ output_patterns = [
     re.compile(r'''echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span style=\\"color:#b5651d;font-weight: bold\\">"\.\$dmrMasterHost\."</span></td></tr>\\n";\}'''),
     re.compile(r'''echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span style=\\"color:#b5651d;font-weight:bold;white-space:normal;word-break:normal;overflow-wrap:anywhere;text-align:center;\\">"\.dvsModsDmrMasterDisplay\(\$dmrMasterHost, \$abinfo\)\."</span></td></tr>\\n";\}'''),
 ]
-output_buttons = 'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span style=\\"color:#b5651d;font-weight: bold\\">".dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo)."</span></td></tr>\\n";}'
+output_buttons = 'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span style=\\"color:#b5651d;font-weight: bold;white-space:normal;word-break:normal;overflow-wrap:anywhere;text-align:center;\\">".dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo)."</span></td></tr>\\n";}'
 
 heading_matches = [h for h in (heading_factory, heading_dvmods) if text.count(h) == 1]
 if len(heading_matches) != 1:

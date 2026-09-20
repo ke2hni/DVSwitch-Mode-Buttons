@@ -12,7 +12,9 @@ case "$1" in
   get) [[ $# -eq 2 ]] || die 'usage: get MODE' ;;
   *) die 'usage: save MODE TARGET | get MODE' ;;
 esac
-install -d -m 700 -o root -g root "$STATE_DIR"
+install -d "$STATE_DIR"
+chown root:root "$STATE_DIR"
+chmod 755 "$STATE_DIR"
 python3 - "$1" "$mode" "${target:-}" "$STATE" <<'PY'
 import json, os, sys, tempfile
 op, mode, target, path = sys.argv[1:]

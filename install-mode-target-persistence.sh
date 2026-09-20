@@ -17,7 +17,9 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ -f dvswitch-mode-buttons ]] || die 'missing repository dvswitch-mode-buttons'
 [[ -f dvswitch-dmr-network.sh ]] || die 'missing repository dvswitch-dmr-network.sh'
 
-install -d -m 700 -o root -g root "$STATE_DIR"
+install -d "$STATE_DIR"
+chown root:root "$STATE_DIR"
+chmod 755 "$STATE_DIR"
 install -d -m 700 -o root -g root "$BACKUP_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
 cp -a "$SCRIPT" "$BACKUP_DIR/dvswitch.sh.$stamp"
@@ -94,10 +96,12 @@ fi'''
     else:
         old = 'systemctl is-active --quiet analog_bridge mmdvm_bridge || die "DVSwitch service verification failed"'
         new = old + '''
-install -d -m 700 -o root -g root /var/lib/dvswitch-mode-buttons
+install -d /var/lib/dvswitch-mode-buttons
+chown root:root /var/lib/dvswitch-mode-buttons
+chmod 755 /var/lib/dvswitch-mode-buttons
 printf '%s\\n' "$network" > /var/lib/dvswitch-mode-buttons/current-mode
 chown root:root /var/lib/dvswitch-mode-buttons/current-mode
-chmod 600 /var/lib/dvswitch-mode-buttons/current-mode
+chmod 644 /var/lib/dvswitch-mode-buttons/current-mode
 target=$(/usr/local/sbin/dvswitch-mode-targets get "$network" 2>/dev/null || true)
 [ -n "$target" ] && "$MODE_CMD" tune "$target"'''
     if text.count(old) != 1: raise SystemExit(f'expected one patch target in {path}; found {text.count(old)}')
