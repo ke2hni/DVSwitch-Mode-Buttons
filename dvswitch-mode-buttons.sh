@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -u
+set -Eeuo pipefail
 
 VERSION="1.0.0-final-test1"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
