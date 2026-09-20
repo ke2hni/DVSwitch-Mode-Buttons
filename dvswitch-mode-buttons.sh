@@ -261,6 +261,61 @@ install -o root -g root -m 755 dvswitch-dmr-network.sh /usr/local/sbin/dvswitch-
 
 ./install-mode-target-persistence.sh
 ./install-standalone-dmr-master-card.sh
+python3 - <<'PY'
+from pathlib import Path
+import os, tempfile
+
+path = Path('/usr/share/dvswitch/include/status.php')
+text = path.read_text(encoding='utf-8')
+text = text.replace('// DVSwitch-Mode-Buttons: standalone DMR Master display v1', '// DVSwitch-Mode-Buttons: standalone DMR Master display v5', 1)
+saved = r'''function dvsButtonsDmrSavedCardMode() {
+        $file = '/var/lib/dvswitch-mode-buttons/last-dmr-card-mode';
+        if (!is_readable($file)) { return ''; }
+        $mode = strtoupper(trim((string)file_get_contents($file)));
+        return in_array($mode, array('BM', 'TGIF', 'STFU'), true) ? $mode : '';
+}
+
+function dvsButtonsDmrSavedNetwork() {
+        $file = '/var/lib/dvswitch-mode-buttons/last-dmr-network';
+        if (!is_readable($file)) { return ''; }
+        $network = strtoupper(trim((string)file_get_contents($file)));
+        return in_array($network, array('BM', 'TGIF'), true) ? $network : '';
+}
+
+'''
+anchor='function dvsButtonsDmrName('
+if 'function dvsButtonsDmrSavedCardMode(' not in text:
+    text=text.replace(anchor, saved+anchor, 1)
+old_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
+        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
+        if ($mode === 'STFU') { return 'DMR STFU Master'; }
+        return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
+}'''
+new_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
+        $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
+        $saved = dvsButtonsDmrSavedCardMode();
+        if ($liveMode === 'STFU' || $saved === 'STFU') { return 'DMR STFU Master'; }
+        if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
+        return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
+}'''
+text=text.replace(old_heading,new_heading,1)
+old_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
+        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
+        $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
+        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
+new_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
+        $saved = dvsButtonsDmrSavedCardMode();
+        $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
+        if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
+        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
+text=text.replace(old_display,new_display,1)
+if 'standalone DMR Master display v5' not in text or 'dvsButtonsDmrSavedCardMode' not in text:
+    raise SystemExit('ERROR: state-aware DMR card upgrade was not applied')
+stat=path.stat(); fd,tmp=tempfile.mkstemp(dir=path.parent)
+with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
+os.chown(tmp,stat.st_uid,stat.st_gid); os.chmod(tmp,stat.st_mode & 0o7777); os.replace(tmp,path)
+PY
+php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'state-aware DMR card upgrade failed'
 install -d /var/lib/dvswitch-mode-buttons
 chown root:root /var/lib/dvswitch-mode-buttons
 chmod 755 /var/lib/dvswitch-mode-buttons
