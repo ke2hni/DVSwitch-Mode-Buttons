@@ -238,7 +238,12 @@ section=re.search(r'(?ms)^\[AMBE_AUDIO\]\s*\n(.*?)(?=^\[|\Z)', analog_text)
 line=re.compile(r'^(\s*txTg\s*=\s*)([^;#\r\n]+)(.*)$', re.I|re.M)
 if not section or len(line.findall(section.group(1))) != 1: raise SystemExit('expected exactly one txTg in [AMBE_AUDIO]')
 def analog_preset(name, value):
-    body=line.sub(lambda m: m.group(1)+value+m.group(3), section.group(1), count=1)
+    def replace_tx_tg(match):
+        prefix=match.group(1)
+        suffix=match.group(3)
+        padding=max(1, 40-len(prefix)-len(value))
+        return prefix+value+(' '*padding)+suffix
+    body=line.sub(replace_tx_tg, section.group(1), count=1)
     data=analog_text[:section.start(1)]+body+analog_text[section.end(1):]
     fd,tmp=tempfile.mkstemp(dir=outdir); os.close(fd)
     with open(tmp,'w',encoding='utf-8',newline='') as f: f.write(data)
