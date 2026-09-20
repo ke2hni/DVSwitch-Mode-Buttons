@@ -5,12 +5,85 @@ VERSION="1.0.0-test4"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
+TARGET="/usr/share/dvswitch/index.php"
+ENDPOINT="/usr/share/dvswitch/dvswitch-mode-buttons.php"
+SUDOERS="/etc/sudoers.d/dvswitch-mode-buttons"
 PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
 LEGACY_PRESET_DIR="/etc/dvswitch-mode-buttons"
 
 die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
 [[ -f "$INI" ]] || die "missing $INI"
+[[ -f "$TARGET" ]] || die "missing $TARGET"
+
+install_dashboard_components(){
+  install -d -o root -g root -m 755 "$(dirname "$ENDPOINT")" /etc/sudoers.d
+  install -o root -g root -m 644 /dev/stdin "$ENDPOINT" <<'PHP'
+<?php
+declare(strict_types=1);
+$allowed = array('BM', 'TGIF', 'STFU', 'YSF', 'P25', 'NXDN', 'DSTAR');
+if (isset($_GET['status'])) {
+    $mode = '';
+    $files = glob('/tmp/ABInfo_*.json');
+    if (is_array($files) && count($files) > 0) {
+        usort($files, static function ($a, $b) { return filemtime($b) <=> filemtime($a); });
+        $data = json_decode((string)file_get_contents($files[0]), true);
+        if (is_array($data)) foreach (array($data['tlv']['ambe_mode'] ?? '', $data['ambe_mode'] ?? '') as $value) {
+            $value = strtoupper(trim((string)$value));
+            if ($value === 'YSFN' || $value === 'YSFW') $value = 'YSF';
+            if ($value !== '') { $mode = $value; break; }
+        }
+    }
+    $address = '';
+    $ini = '/opt/MMDVM_Bridge/MMDVM_Bridge.ini';
+    if (is_readable($ini)) {
+        $inNetwork = false;
+        foreach (file($ini, FILE_IGNORE_NEW_LINES) ?: array() as $line) {
+            if (trim($line) === '[DMR Network]') { $inNetwork = true; continue; }
+            if ($inNetwork && preg_match('/^\s*\[/', $line)) break;
+            if ($inNetwork && preg_match('/^\s*Address\s*=\s*(\S+)/i', $line, $match)) { $address = $match[1]; break; }
+        }
+    }
+    $network = (stripos($address, 'tgif') !== false) ? 'TGIF' : ((stripos($address, 'brandmeister') !== false || stripos($address, 'repeater.net') !== false) ? 'BM' : '');
+    header('Content-Type: application/json'); echo json_encode(array('ok' => $mode !== '', 'mode' => $mode, 'network' => $network)); exit;
+}
+$mode = strtoupper(trim((string)($_GET['mode'] ?? '')));
+if (!in_array($mode, $allowed, true)) { http_response_code(400); header('Content-Type: application/json'); echo json_encode(array('ok' => false, 'error' => 'Unsupported mode')); exit; }
+$output = array(); $status = 0;
+exec('/usr/bin/sudo /usr/local/sbin/dvswitch-mode-buttons '.escapeshellarg($mode).' 2>&1', $output, $status);
+header('Content-Type: application/json'); echo json_encode(array('ok' => $status === 0, 'mode' => $mode, 'output' => implode("\n", $output), 'status' => $status));
+?>
+PHP
+  install -o root -g root -m 440 /dev/stdin "$SUDOERS" <<'SUDO'
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons BM
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons TGIF
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons STFU
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons YSF
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons P25
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons NXDN
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons DSTAR
+SUDO
+  visudo -cf "$SUDOERS" >/dev/null || die 'sudoers validation failed'
+  php -l "$ENDPOINT" >/dev/null || die 'endpoint PHP validation failed'
+  python3 - "$TARGET" <<'PY'
+import os, re, shutil, sys, tempfile
+path=sys.argv[1]; text=open(path, encoding='utf-8').read()
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->'
+if marker not in text:
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->
+<div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
+<button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
+<style>#dvs-mode-buttons{text-align:center;margin:4px auto 8px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}</style>
+<script>(function(){const box=document.getElementById('dvs-mode-buttons'),buttons=[...box.querySelectorAll('button')];function select(mode,network){buttons.forEach(b=>b.classList.toggle('selected',b.dataset.mode===(mode==='DMR'?(network||''):mode)))}async function refresh(){try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?status=1',{cache:'no-store'}),j=await r.json();if(j.ok)select(j.mode,j.network)}catch(e){}}buttons.forEach(b=>b.addEventListener('click',async()=>{buttons.forEach(x=>x.disabled=true);try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?mode='+encodeURIComponent(b.dataset.mode)),j=await r.json();if(!j.ok)throw new Error(j.output||j.error||'switch failed');select(j.mode,j.network)}catch(e){alert('Mode switch failed: '+e.message)}finally{buttons.forEach(x=>x.disabled=false)}}));refresh()})();</script>'''
+    match=re.search(r'</body>', text, re.I)
+    if not match: raise SystemExit('ERROR: </body> anchor not found')
+    text=text[:match.start()]+block+text[match.start():]
+    st=os.stat(path); fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path))
+    with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
+    os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
+PY
+  grep -qF "$marker" "$TARGET" || die 'dashboard button block was not installed'
+}
 
 mode="check"
 [[ ${1:-} == "--install" ]] && mode="install"
@@ -106,6 +179,7 @@ PY
 chmod 700 "$PRESET_DIR"; chown -R root:root "$PRESET_DIR"
 echo "PASS: created available BM/TGIF presets in $PRESET_DIR."
 
+install_dashboard_components
 install -o root -g root -m 755 dvswitch-mode-buttons /usr/local/sbin/dvswitch-mode-buttons
 install -o root -g root -m 755 dvswitch-mode-targets /usr/local/sbin/dvswitch-mode-targets
 install -o root -g root -m 755 dvswitch-dmr-network.sh /usr/local/sbin/dvswitch-dmr-network
