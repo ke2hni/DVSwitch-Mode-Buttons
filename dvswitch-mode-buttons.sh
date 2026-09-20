@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -u
 
-VERSION="1.0.0-test4"
+VERSION="1.0.0-final-test1"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
 TARGET="/usr/share/dvswitch/index.php"
+MODE_HELPER="/usr/local/sbin/dvswitch-mode-buttons"
+DMR_HELPER="/usr/local/sbin/dvswitch-dmr-network"
 ENDPOINT="/usr/share/dvswitch/dvswitch-mode-buttons.php"
 SUDOERS="/etc/sudoers.d/dvswitch-mode-buttons"
 PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
@@ -15,6 +17,67 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
 [[ -f "$INI" ]] || die "missing $INI"
 [[ -f "$TARGET" ]] || die "missing $TARGET"
+
+BACKUP_DIR=/var/backups/dvswitch-mode-buttons
+backup(){
+  install -d -m 700 -o root -g root "$BACKUP_DIR"
+  local source=$1
+  [[ -e "$source" ]] || return 0
+  cp -a "$source" "$BACKUP_DIR/$(basename "$source").$(date +%Y%m%d-%H%M%S)"
+}
+
+uninstall(){
+  install -d -m 700 -o root -g root "$BACKUP_DIR"
+  backup "$TARGET"
+  backup "$ENDPOINT"
+  backup "$SUDOERS"
+  backup /usr/share/dvswitch/include/status.php
+  backup /opt/MMDVM_Bridge/dvswitch.sh
+  python3 - "$TARGET" <<'PY'
+import os, sys, tempfile
+path=sys.argv[1]
+text=open(path, encoding='utf-8').read()
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->'
+if marker in text:
+    start=text.index(marker)
+    end=text.lower().find('</body>', start)
+    if end < 0: raise SystemExit('ERROR: dashboard closing body anchor not found')
+    text=text[:start]+text[end:]
+    fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path), text=True)
+    with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
+    st=os.stat(path); os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
+PY
+  rm -f "$MODE_HELPER" "$DMR_HELPER" "$ENDPOINT" "$SUDOERS"
+  rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
+  if [[ -d /var/backups/dvswitch-mode-buttons ]]; then
+    latest_status=$(ls -1t /var/backups/dvswitch-mode-buttons/status.php.* 2>/dev/null | head -1 || true)
+    [[ -z "$latest_status" ]] || install -o root -g root -m 644 "$latest_status" /usr/share/dvswitch/include/status.php
+    latest_bridge=$(ls -1t /var/backups/dvswitch-mode-buttons/dvswitch.sh.* 2>/dev/null | head -1 || true)
+    [[ -z "$latest_bridge" ]] || install -o root -g root -m 755 "$latest_bridge" /opt/MMDVM_Bridge/dvswitch.sh
+  fi
+  php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'status.php validation failed after uninstall'
+  systemctl restart apache2 || die 'Apache restart failed after uninstall'
+  echo 'PASS: DVSwitch Mode Buttons removed; backups saved under /var/backups/dvswitch-mode-buttons.'
+}
+
+if [[ ${1:-} == "--uninstall" ]]; then
+  uninstall
+  exit 0
+fi
+
+if [[ ${1:-} == "" ]]; then
+  echo 'DVSwitch Mode Buttons manager'
+  echo '1) Install / upgrade'
+  echo '2) Uninstall'
+  echo '3) Exit'
+  read -r -p 'Select an option: ' choice
+  case "$choice" in
+    1) set -- --install ;;
+    2) uninstall; exit 0 ;;
+    3) exit 0 ;;
+    *) die 'invalid selection' ;;
+  esac
+fi
 
 install_dashboard_components(){
   install -d -o root -g root -m 755 "$(dirname "$ENDPOINT")" /etc/sudoers.d
@@ -198,3 +261,5 @@ done
 php -l /usr/share/dvswitch/include/status.php
 systemctl restart apache2
 echo "PASS: mode helpers, target persistence, standalone DMR card, and permissions installed."
+echo '!!!!!!!!   NOTICE !!!!!!!!'
+echo 'NOTICE: If the DVSwitch dashboard was already open, refresh that browser tab (press F5) to display the new buttons.'
