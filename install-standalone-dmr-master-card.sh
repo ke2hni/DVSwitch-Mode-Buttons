@@ -88,8 +88,11 @@ output_patterns = [
 output_buttons = 'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span style=\\"color:#b5651d;font-weight: bold;white-space:normal;word-break:normal;overflow-wrap:anywhere;text-align:center;\\">".dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo)."</span></td></tr>\\n";}'
 
 heading_matches = [h for h in (heading_factory, heading_dvmods) if text.count(h) == 1]
+if text.count(heading_buttons) == 1:
+    print('ALREADY INSTALLED: standalone DMR Master display v5 is present.')
+    raise SystemExit(0)
 if len(heading_matches) != 1:
-    raise SystemExit('ERROR: expected exactly one supported DMR Master heading')
+    raise SystemExit(f'ERROR: expected one active supported DMR Master heading; found {len(heading_matches)}')
 found = []
 for pattern in output_patterns:
     found.extend(pattern.finditer(text))
