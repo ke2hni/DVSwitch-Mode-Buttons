@@ -293,8 +293,10 @@ old_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
 }'''
 new_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
         $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
+        if ($liveMode === 'STFU') { return 'DMR STFU Master'; }
+        if ($liveMode === 'DMR') { return 'DMR '.dvsButtonsDmrNetwork($master).' Master'; }
         $saved = dvsButtonsDmrSavedCardMode();
-        if ($liveMode === 'STFU' || $saved === 'STFU') { return 'DMR STFU Master'; }
+        if ($saved === 'STFU') { return 'DMR STFU Master'; }
         if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
         return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
 }'''
@@ -304,9 +306,16 @@ old_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
         $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
         $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
 new_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $saved = dvsButtonsDmrSavedCardMode();
-        $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
-        if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
+        $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
+        if ($liveMode === 'DMR') {
+                $network = dvsButtonsDmrNetwork($master);
+        } elseif ($liveMode === 'STFU') {
+                $network = 'BM';
+        } else {
+                $saved = dvsButtonsDmrSavedCardMode();
+                $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
+                if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
+        }
         $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
 text=text.replace(old_display,new_display,1)
 if 'standalone DMR Master display v5' not in text or 'dvsButtonsDmrSavedCardMode' not in text:
