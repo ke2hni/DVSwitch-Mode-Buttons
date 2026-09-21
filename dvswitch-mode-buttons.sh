@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-final-test1"
+VERSION="1.0.0-final-test2-live-dmr-card"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -300,7 +300,15 @@ new_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
         if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
         return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
 }'''
+old_v5_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
+        $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
+        $saved = dvsButtonsDmrSavedCardMode();
+        if ($liveMode === 'STFU' || $saved === 'STFU') { return 'DMR STFU Master'; }
+        if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
+        return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
+}'''
 text=text.replace(old_heading,new_heading,1)
+text=text.replace(old_v5_heading,new_heading,1)
 old_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
         $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
         $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
@@ -317,7 +325,13 @@ new_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
                 if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
         }
         $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
+old_v5_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
+        $saved = dvsButtonsDmrSavedCardMode();
+        $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
+        if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
+        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
 text=text.replace(old_display,new_display,1)
+text=text.replace(old_v5_display,new_display,1)
 if 'standalone DMR Master display v5' not in text or 'dvsButtonsDmrSavedCardMode' not in text:
     raise SystemExit('ERROR: state-aware DMR card upgrade was not applied')
 stat=path.stat(); fd,tmp=tempfile.mkstemp(dir=path.parent)
