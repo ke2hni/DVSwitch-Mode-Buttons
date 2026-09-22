@@ -14,6 +14,8 @@ Seven-mode dashboard selection for DVSwitch: **BM · TGIF · STFU · YSF · P25 
 - Apache-readable DMR card state that remains writable only by root.
 
 The standalone DMR card is self-contained and does not require the `DVSwitch-Mods` repository.
+Its BM, TGIF, and STFU cards display the `Room` label above the current
+network/talkgroup name.
 
 ## Requirements
 
