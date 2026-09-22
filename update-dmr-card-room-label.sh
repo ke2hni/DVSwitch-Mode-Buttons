@@ -31,7 +31,7 @@ if len(markers) != 1:
     raise SystemExit('ERROR: expected exactly one standalone DMR card marker')
 if text.count('function dvsButtonsDmrMasterDisplay($master, $abinfo) {') != 1:
     raise SystemExit('ERROR: expected exactly one standalone DMR display function')
-if "return 'Room<br>'" in text:
+if '<span style="color:#000000;font-weight:normal;">Room</span><br/>' in text:
     print('ALREADY INSTALLED: DMR card Room label is present.')
     raise SystemExit(0)
 
@@ -43,17 +43,23 @@ match = pattern.search(text)
 if match is None:
     raise SystemExit('ERROR: standalone DMR display function structure is unsupported')
 old = match.group(0)
-if old.count("return htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');") != 1 or old.count("return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');") != 1:
-    raise SystemExit('ERROR: existing standalone DMR display function is not the supported v5 structure')
-new = old.replace(
+old_master = (
     "return htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');",
-    "return 'Room<br>'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');",
-).replace(
-    "return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');",
-    "return 'Room<br>'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');",
+    "return 'Room<br/><span style=\"color:#b5651d;font-weight: bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';",
 )
+old_display = (
+    "return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');",
+    "return 'Room<br/><span style=\"color:#b5651d;font-weight: bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';",
+)
+if sum(old.count(value) for value in old_master) != 1 or sum(old.count(value) for value in old_display) != 1:
+    raise SystemExit('ERROR: existing standalone DMR display function is not the supported v5 structure')
+new = old
+new = new.replace(old_master[0], "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';", 1)
+new = new.replace(old_master[1], "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';", 1)
+new = new.replace(old_display[0], "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';", 1)
+new = new.replace(old_display[1], "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';", 1)
 candidate = text[:match.start()] + new + text[match.end():]
-if candidate.count("return 'Room<br>'") != 2:
+if candidate.count('<span style="color:#000000;font-weight:normal;">Room</span><br/>') != 2:
     raise SystemExit('ERROR: DMR Room label update was not applied exactly twice')
 
 if action == '--check':

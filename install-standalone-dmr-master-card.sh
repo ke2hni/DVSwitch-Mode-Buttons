@@ -65,10 +65,10 @@ function dvsButtonsDmrMasterDisplay($master, $abinfo) {
         $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
         $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
         $talkgroup = dvsButtonsDmrTalkgroup($abinfo);
-        if ($talkgroup === '') { return 'Room<br>'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
+        if ($talkgroup === '') { return '<span style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'; }
         $name = dvsButtonsDmrName($network, $talkgroup);
         $display = ($name !== '') ? $name : 'TG '.$talkgroup;
-        return 'Room<br>'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        return '<span style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';
 }
 
 '''

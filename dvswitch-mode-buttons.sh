@@ -332,6 +332,17 @@ old_v5_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
         $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
 text=text.replace(old_display,new_display,1)
 text=text.replace(old_v5_display,new_display,1)
+plain_master = "return 'Room<br>'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');"
+plain_display = "return 'Room<br>'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');"
+formatted_master = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
+formatted_display = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
+if text.count(plain_master) == 1 and text.count(plain_display) == 1:
+    text = text.replace(plain_master, formatted_master, 1)
+    text = text.replace(plain_display, formatted_display, 1)
+elif text.count(formatted_master) == 1 and text.count(formatted_display) == 1:
+    pass
+else:
+    raise SystemExit('ERROR: DMR Room-label formatting is incomplete or ambiguous')
 if 'standalone DMR Master display v5' not in text or 'dvsButtonsDmrSavedCardMode' not in text:
     raise SystemExit('ERROR: state-aware DMR card upgrade was not applied')
 stat=path.stat(); fd,tmp=tempfile.mkstemp(dir=path.parent)
