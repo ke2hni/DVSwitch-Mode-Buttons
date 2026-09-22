@@ -3,13 +3,13 @@ set -Eeuo pipefail
 
 STATUS=/usr/share/dvswitch/include/status.php
 BACKUP_DIR=/var/backups/dvswitch-mode-buttons/dmr-card-room-label
-MARKER='// DVSwitch-Mode-Buttons: standalone DMR Master display v1'
+MARKER_PATTERN='// DVSwitch-Mode-Buttons: standalone DMR Master display v[15]'
 
 [[ $EUID -eq 0 ]] || { echo 'ERROR: run with sudo' >&2; exit 1; }
 [[ -f "$STATUS" ]] || { echo "ERROR: missing $STATUS" >&2; exit 1; }
 [[ $# -eq 1 && ( "$1" == '--check' || "$1" == '--install' ) ]] || { echo "Usage: sudo $0 {--check|--install}" >&2; exit 2; }
 
-python3 - "$STATUS" "$BACKUP_DIR" "$MARKER" "$1" <<'PY'
+python3 - "$STATUS" "$BACKUP_DIR" "$MARKER_PATTERN" "$1" <<'PY'
 import os
 import re
 import shutil
@@ -20,13 +20,14 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 backup_dir = Path(sys.argv[2])
-marker = sys.argv[3]
+marker_pattern = sys.argv[3]
 action = sys.argv[4]
 raw = path.read_bytes()
 nl = b'\r\n' if b'\r\n' in raw else b'\n'
 text = raw.replace(b'\r\n', b'\n').decode('utf-8')
 
-if text.count(marker) != 1:
+markers = re.findall(re.escape(marker_pattern).replace(r'\[15\]', r'[15]'), text)
+if len(markers) != 1:
     raise SystemExit('ERROR: expected exactly one standalone DMR card marker')
 if text.count('function dvsButtonsDmrMasterDisplay($master, $abinfo) {') != 1:
     raise SystemExit('ERROR: expected exactly one standalone DMR display function')
@@ -42,16 +43,7 @@ match = pattern.search(text)
 if match is None:
     raise SystemExit('ERROR: standalone DMR display function structure is unsupported')
 old = match.group(0)
-expected = """function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
-        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);
-        if ($talkgroup === '') { return htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
-        $name = dvsButtonsDmrName($network, $talkgroup);
-        $display = ($name !== '') ? $name : 'TG '.$talkgroup;
-        return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}"""
-if old != expected:
+if old.count("return htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');") != 1 or old.count("return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');") != 1:
     raise SystemExit('ERROR: existing standalone DMR display function is not the supported v5 structure')
 new = old.replace(
     "return htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');",
