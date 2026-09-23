@@ -48,7 +48,7 @@ The check makes no changes. Installation also validates PHP syntax and restarts 
 sudo ./dvswitch-mode-buttons.sh --uninstall
 ```
 
-Uninstall removes both mode helpers, the target-state helper, endpoint, sudoers entry, dashboard button block, presets, and saved state. If an older standalone DMR helper was backed up before consolidation, uninstall restores it. It also restores the most recent saved `status.php` and `dvswitch.sh` copies while keeping all backups.
+Uninstall removes both mode helpers, the target-state helper, endpoint, sudoers entry, dashboard button block, presets, and saved state. If an older standalone DMR helper was backed up before consolidation, uninstall restores it. Before removing runtime files, it backs up the dashboard and bridge files and surgically removes only structurally recognized Mode Buttons changes from `index.php`, `status.php`, and `dvswitch.sh`. DMR rows are restored to the DVSwitch-Mods implementation when its helper is present, or to the factory rows otherwise. It never restores a whole-file snapshot over changes another installer made. If an owned block is incomplete or ambiguous, uninstall stops before changing shared files or removing helpers.
 
 ## Installed state and backups
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.2-unified-dmr-switch-uninstall"
+VERSION="1.0.3-owned-shared-file-uninstall"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
 TARGET="/usr/share/dvswitch/index.php"
+STATUS_TARGET="/usr/share/dvswitch/include/status.php"
 MODE_HELPER="/usr/local/sbin/dvswitch-mode-buttons"
 DMR_HELPER="/usr/local/sbin/dvswitch-dmr-network"
 TARGET_HELPER="/usr/local/sbin/dvswitch-mode-targets"
@@ -28,47 +29,243 @@ bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./install-mode-target-pe
 BACKUP_DIR=/var/backups/dvswitch-mode-buttons
 backup(){
   install -d -m 700 -o root -g root "$BACKUP_DIR"
-  local source=$1
+  local source=$1 stamp candidate counter=0
   [[ -e "$source" ]] || return 0
-  cp -a "$source" "$BACKUP_DIR/$(basename "$source").$(date +%Y%m%d-%H%M%S)"
+  stamp=$(date +%Y%m%d-%H%M%S)
+  candidate="$BACKUP_DIR/$(basename "$source").$stamp"
+  while [[ -e "$candidate" ]]; do
+    counter=$((counter + 1))
+    candidate="$BACKUP_DIR/$(basename "$source").$stamp-$counter"
+  done
+  cp -a "$source" "$candidate"
 }
 
 uninstall(){
   install -d -m 700 -o root -g root "$BACKUP_DIR"
   # Capture the last pre-uninstall rollback copies before backing up current files.
-  latest_status=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'status.php.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
-  latest_bridge=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'dvswitch.sh.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
   latest_dmr_helper=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'dvswitch-dmr-network.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
   backup "$TARGET"
   backup "$ENDPOINT"
   backup "$SUDOERS"
-  backup /usr/share/dvswitch/include/status.php
+  backup "$STATUS_TARGET"
   backup /opt/MMDVM_Bridge/dvswitch.sh
   backup "$DMR_HELPER"
-  python3 - "$TARGET" <<'PY'
-import os, sys, tempfile
-path=sys.argv[1]
-text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->'
-if marker in text:
-    start=text.index(marker)
-    end=text.lower().find('</script>', start)
-    if end < 0: raise SystemExit('ERROR: mode-button script end anchor not found')
-    end += len('</script>')
-    text=text[:start]+text[end:]
-    fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path), text=True)
-    with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
-    st=os.stat(path); os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
-PY
+  python3 - "$STATUS_TARGET" /opt/MMDVM_Bridge/dvswitch.sh "$TARGET" <<'PY_BUTTONS_UNINSTALL' || die 'uninstall structure was unsupported; installed controls and helpers were left in place'
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+
+"""Remove only structurally recognized Mode Buttons edits from shared files."""
+
+from __future__ import annotations
+
+import os
+import re
+import stat
+import sys
+import tempfile
+from pathlib import Path
+
+STATUS_MARKER = re.compile(
+    r"^// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-5]$", re.MULTILINE
+)
+BUTTONS_HEADING = (
+    'echo "<tr><th colspan=\\"2\\">".dvsButtonsDmrMasterHeading($dmrMasterHost, $abinfo).'
+    '"</th></tr>\\n";'
+)
+MODS_HEADING = (
+    'echo "<tr><th colspan=\\"2\\">".dvsModsDmrMasterHeading($dmrMasterHost, $abinfo).'
+    '"</th></tr>\\n";'
+)
+FACTORY_HEADING = 'echo "<tr><th colspan=\\"2\\">DMR Master</th></tr>\\n";'
+
+BUTTONS_OUTPUT = (
+    'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span '
+    'style=\\"color:#b5651d;font-weight: bold;white-space:normal;word-break:normal;'
+    'overflow-wrap:anywhere;text-align:center;\\">".dvsButtonsDmrMasterDisplay($dmrMasterHost, '
+    '$abinfo)."</span></td></tr>\\n";}'
+)
+MODS_OUTPUT = (
+    'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span '
+    'style=\\"color:#b5651d;font-weight:bold;white-space:normal;word-break:normal;'
+    'overflow-wrap:anywhere;text-align:center;\\">".dvsModsDmrMasterDisplay($dmrMasterHost, '
+    '$abinfo)."</span></td></tr>\\n";}'
+)
+FACTORY_OUTPUT = (
+    'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\"><span '
+    'style=\\"color:#b5651d;font-weight: bold\\">".$dmrMasterHost.'
+    '"</span></td></tr>\\n";}'
+)
+
+BRIDGE_MARKER = "# DVSwitch-Mode-Buttons: per-mode target persistence v1"
+BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
+        getABInfoValue last_tune
+    else
+        remoteControlCommand "txTg=$1"
+        # DVSwitch-Mode-Buttons: per-mode target persistence v1
+        if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
+            mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+            case "$mode" in
+                BM|TGIF|STFU|YSF|P25|NXDN|DSTAR)
+                    /usr/local/sbin/dvswitch-mode-targets save "$mode" "$1" >/dev/null || true
+                    ;;
+            esac
+        fi
+    fi'''
+BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
+        getABInfoValue last_tune
+    else
+        remoteControlCommand "txTg=$1"
+    fi'''
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->'
+
+
+class UnsafeStructure(RuntimeError):
+    pass
+
+
+def patch_status(text: str) -> tuple[str, bool]:
+    marker_matches = list(STATUS_MARKER.finditer(text))
+    heading_count = text.count(".dvsButtonsDmrMasterHeading(")
+    display_count = text.count(".dvsButtonsDmrMasterDisplay(")
+    helpers_present = bool(marker_matches)
+
+    if not helpers_present and heading_count == 0 and display_count == 0:
+        return text, False
+    if len(marker_matches) != 1 or heading_count != 1 or display_count != 1:
+        raise UnsafeStructure("status.php contains incomplete or duplicate Buttons DMR markers")
+
+    required_helpers = (
+        "dvsButtonsDmrNetwork",
+        "dvsButtonsDmrTalkgroup",
+        "dvsButtonsDmrName",
+        "dvsButtonsDmrMasterHeading",
+        "dvsButtonsDmrMasterDisplay",
+    )
+    for name in required_helpers:
+        if len(re.findall(r"^function " + re.escape(name) + r"\(", text, re.MULTILINE)) != 1:
+            raise UnsafeStructure(f"status.php has an unsupported {name} helper structure")
+    for name in ("dvsButtonsDmrSavedCardMode", "dvsButtonsDmrSavedNetwork"):
+        if len(re.findall(r"^function " + re.escape(name) + r"\(", text, re.MULTILINE)) > 1:
+            raise UnsafeStructure(f"status.php has duplicate {name} helpers")
+
+    marker = marker_matches[0]
+    close_tag = text.find("?>", marker.end())
+    if close_tag < 0:
+        raise UnsafeStructure("status.php is missing the PHP close tag after Buttons helpers")
+    helper_region = text[marker.start():close_tag]
+    function_pattern = re.compile(
+        r"(?ms)^function (dvsButtonsDmr[A-Za-z0-9_]*)\([^\n]*\) \{\n.*?^\}\n?"
+    )
+    stripped_helpers, removed = function_pattern.subn("", helper_region)
+    stripped_helpers = STATUS_MARKER.sub("", stripped_helpers, count=1)
+    if removed < len(required_helpers) or re.search(r"\bdvsButtonsDmr[A-Za-z0-9_]*\s*\(", stripped_helpers):
+        raise UnsafeStructure("status.php contains incomplete or unrecognized Buttons helper code; left unchanged")
+
+    mods_helpers = (
+        text.count("function dvsModsDmrMasterHeading(") == 1
+        and text.count("function dvsModsDmrMasterDisplay(") == 1
+    )
+    heading_replacement = MODS_HEADING if mods_helpers else FACTORY_HEADING
+    output_replacement = MODS_OUTPUT if mods_helpers else FACTORY_OUTPUT
+    if text.count(BUTTONS_HEADING) != 1 or text.count(BUTTONS_OUTPUT) != 1:
+        raise UnsafeStructure("status.php active DMR rows do not match the supported Buttons structure")
+
+    result = text.replace(BUTTONS_HEADING, heading_replacement, 1)
+    result = result.replace(BUTTONS_OUTPUT, output_replacement, 1)
+    # Remove only the Buttons marker and helper functions. Keep adjacent
+    # helpers owned by DVSwitch-Mods or local dashboard customizations intact.
+    result = result[:marker.start()] + stripped_helpers + result[close_tag:]
+    return result, result != text
+
+
+def patch_bridge(text: str) -> tuple[str, bool]:
+    marker_count = text.count(BRIDGE_MARKER)
+    if marker_count == 0:
+        return text, False
+    if marker_count != 1 or text.count(BRIDGE_BLOCK) != 1:
+        raise UnsafeStructure("dvswitch.sh target-persistence block is incomplete or ambiguous")
+    return text.replace(BRIDGE_BLOCK, BRIDGE_ORIGINAL, 1), True
+
+
+def patch_index(text: str) -> tuple[str, bool]:
+    marker_count = text.count(INDEX_MARKER)
+    if marker_count == 0:
+        return text, False
+    if marker_count != 1:
+        raise UnsafeStructure("index.php has duplicate Mode Buttons markers")
+    start = text.index(INDEX_MARKER)
+    end = text.lower().find("</script>", start)
+    if end < 0:
+        raise UnsafeStructure("index.php is missing the Mode Buttons script end anchor")
+    end += len("</script>")
+    return text[:start] + text[end:], True
+
+
+def read_target(path: Path) -> tuple[str, bytes, os.stat_result]:
+    if path.is_symlink() or not path.is_file():
+        raise UnsafeStructure(f"shared target is not a regular file: {path}")
+    raw = path.read_bytes()
+    crlf_count = raw.count(b"\r\n")
+    bare_cr_count = raw.count(b"\r") - crlf_count
+    bare_lf_count = raw.replace(b"\r\n", b"").count(b"\n")
+    if bare_cr_count or (crlf_count and bare_lf_count):
+        raise UnsafeStructure(f"mixed or unsupported line endings in {path}; file was left unchanged")
+    newline = b"\r\n" if b"\r\n" in raw else b"\n"
+    return raw.replace(b"\r\n", b"\n").decode("utf-8"), newline, path.stat()
+
+
+def atomic_write(path: Path, text: str, newline: bytes, original_stat: os.stat_result) -> None:
+    fd, temporary = tempfile.mkstemp(prefix="." + path.name + ".buttons-uninstall.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(text.replace("\n", newline.decode()).encode("utf-8"))
+        os.chown(temporary, original_stat.st_uid, original_stat.st_gid)
+        os.chmod(temporary, stat.S_IMODE(original_stat.st_mode))
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main() -> None:
+    if len(sys.argv) != 4:
+        raise SystemExit("Usage: embedded uninstall program STATUS.PHP DVSWITCH.SH INDEX.PHP")
+    status_path, bridge_path, index_path = map(Path, sys.argv[1:])
+    status_text, status_nl, status_stat = read_target(status_path)
+    bridge_text, bridge_nl, bridge_stat = read_target(bridge_path)
+    index_text, index_nl, index_stat = read_target(index_path)
+
+    # Prepare and validate every output before replacing any target.
+    status_result, status_changed = patch_status(status_text)
+    bridge_result, bridge_changed = patch_bridge(bridge_text)
+    index_result, index_changed = patch_index(index_text)
+    if status_changed:
+        atomic_write(status_path, status_result, status_nl, status_stat)
+    if bridge_changed:
+        atomic_write(bridge_path, bridge_result, bridge_nl, bridge_stat)
+    if index_changed:
+        atomic_write(index_path, index_result, index_nl, index_stat)
+    print(
+        "PASS: removed Buttons-owned shared-file edits; preserved all other content."
+        if status_changed or bridge_changed or index_changed
+        else "PASS: no recognized Buttons shared-file edits required removal."
+    )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, UnicodeError, UnsafeStructure) as error:
+        raise SystemExit(f"ERROR: {error}; shared files were left unchanged")
+PY_BUTTONS_UNINSTALL
   rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
   rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
-  [[ -z "$latest_status" ]] || install -o root -g root -m 644 "$latest_status" /usr/share/dvswitch/include/status.php
-  [[ -z "$latest_bridge" ]] || install -o root -g root -m 755 "$latest_bridge" /opt/MMDVM_Bridge/dvswitch.sh
   # Restore an older standalone helper when one was present before consolidation.
   [[ -z "$latest_dmr_helper" ]] || cp -a "$latest_dmr_helper" "$DMR_HELPER"
-  php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'status.php validation failed after uninstall'
+  php -l "$STATUS_TARGET" >/dev/null || die 'status.php validation failed after uninstall'
   systemctl restart apache2 || die 'Apache restart failed after uninstall'
   echo 'PASS: DVSwitch Mode Buttons removed; backups saved under /var/backups/dvswitch-mode-buttons.'
+  echo 'PASS: Buttons-owned dashboard and bridge changes removed; other installed changes were preserved.'
 }
 
 if [[ ${1:-} == "--uninstall" ]]; then
@@ -356,7 +553,7 @@ stat=path.stat(); fd,tmp=tempfile.mkstemp(dir=path.parent)
 with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
 os.chown(tmp,stat.st_uid,stat.st_gid); os.chmod(tmp,stat.st_mode & 0o7777); os.replace(tmp,path)
 PY
-php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'state-aware DMR card upgrade failed'
+php -l "$STATUS_TARGET" >/dev/null || die 'state-aware DMR card upgrade failed'
 install -d /var/lib/dvswitch-mode-buttons
 chown root:root /var/lib/dvswitch-mode-buttons
 chmod 755 /var/lib/dvswitch-mode-buttons
@@ -366,7 +563,7 @@ for state_file in current-mode last-dmr-card-mode last-dmr-network; do
     chmod 644 "/var/lib/dvswitch-mode-buttons/$state_file"
   fi
 done
-php -l /usr/share/dvswitch/include/status.php
+php -l "$STATUS_TARGET"
 systemctl restart apache2
 echo "PASS: mode helpers, target persistence, standalone DMR card, and permissions installed."
 echo '!!!!!!!!   NOTICE !!!!!!!!'
