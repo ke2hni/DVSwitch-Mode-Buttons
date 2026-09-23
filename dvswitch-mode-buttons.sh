@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-final-test3-live-button-sync"
+VERSION="1.0.2-unified-dmr-switch-uninstall"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
 TARGET="/usr/share/dvswitch/index.php"
 MODE_HELPER="/usr/local/sbin/dvswitch-mode-buttons"
 DMR_HELPER="/usr/local/sbin/dvswitch-dmr-network"
+TARGET_HELPER="/usr/local/sbin/dvswitch-mode-targets"
 ENDPOINT="/usr/share/dvswitch/dvswitch-mode-buttons.php"
 SUDOERS="/etc/sudoers.d/dvswitch-mode-buttons"
 PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
@@ -17,6 +18,12 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
 [[ -f "$INI" ]] || die "missing $INI"
 [[ -f "$TARGET" ]] || die "missing $TARGET"
+[[ -f ./dvswitch-mode-buttons ]] || die 'missing unified mode helper source'
+[[ -f ./dvswitch-mode-targets ]] || die 'missing target-state helper source'
+[[ -f ./install-mode-target-persistence.sh ]] || die 'missing target-persistence installer'
+[[ -f ./install-standalone-dmr-master-card.sh ]] || die 'missing standalone DMR-card installer'
+grep -q '^switch_dmr_network(){' ./dvswitch-mode-buttons || die 'unified DMR switch function is missing'
+bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./install-mode-target-persistence.sh ./install-standalone-dmr-master-card.sh || die 'installer source syntax validation failed'
 
 BACKUP_DIR=/var/backups/dvswitch-mode-buttons
 backup(){
@@ -28,11 +35,16 @@ backup(){
 
 uninstall(){
   install -d -m 700 -o root -g root "$BACKUP_DIR"
+  # Capture the last pre-uninstall rollback copies before backing up current files.
+  latest_status=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'status.php.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
+  latest_bridge=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'dvswitch.sh.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
+  latest_dmr_helper=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'dvswitch-dmr-network.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
   backup "$TARGET"
   backup "$ENDPOINT"
   backup "$SUDOERS"
   backup /usr/share/dvswitch/include/status.php
   backup /opt/MMDVM_Bridge/dvswitch.sh
+  backup "$DMR_HELPER"
   python3 - "$TARGET" <<'PY'
 import os, sys, tempfile
 path=sys.argv[1]
@@ -48,14 +60,12 @@ if marker in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     st=os.stat(path); os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  rm -f "$MODE_HELPER" "$DMR_HELPER" "$ENDPOINT" "$SUDOERS"
+  rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
   rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
-  if [[ -d /var/backups/dvswitch-mode-buttons ]]; then
-    latest_status=$(ls -1t /var/backups/dvswitch-mode-buttons/status.php.* 2>/dev/null | head -1 || true)
-    [[ -z "$latest_status" ]] || install -o root -g root -m 644 "$latest_status" /usr/share/dvswitch/include/status.php
-    latest_bridge=$(ls -1t /var/backups/dvswitch-mode-buttons/dvswitch.sh.* 2>/dev/null | head -1 || true)
-    [[ -z "$latest_bridge" ]] || install -o root -g root -m 755 "$latest_bridge" /opt/MMDVM_Bridge/dvswitch.sh
-  fi
+  [[ -z "$latest_status" ]] || install -o root -g root -m 644 "$latest_status" /usr/share/dvswitch/include/status.php
+  [[ -z "$latest_bridge" ]] || install -o root -g root -m 755 "$latest_bridge" /opt/MMDVM_Bridge/dvswitch.sh
+  # Restore an older standalone helper when one was present before consolidation.
+  [[ -z "$latest_dmr_helper" ]] || cp -a "$latest_dmr_helper" "$DMR_HELPER"
   php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'status.php validation failed after uninstall'
   systemctl restart apache2 || die 'Apache restart failed after uninstall'
   echo 'PASS: DVSwitch Mode Buttons removed; backups saved under /var/backups/dvswitch-mode-buttons.'
@@ -255,9 +265,6 @@ chmod 700 "$PRESET_DIR"; chown -R root:root "$PRESET_DIR"
 echo "PASS: created available BM/TGIF presets in $PRESET_DIR."
 
 install_dashboard_components
-install -o root -g root -m 755 dvswitch-mode-buttons /usr/local/sbin/dvswitch-mode-buttons
-install -o root -g root -m 755 dvswitch-mode-targets /usr/local/sbin/dvswitch-mode-targets
-install -o root -g root -m 755 dvswitch-dmr-network.sh /usr/local/sbin/dvswitch-dmr-network
 
 ./install-mode-target-persistence.sh
 ./install-standalone-dmr-master-card.sh

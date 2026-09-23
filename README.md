@@ -6,7 +6,7 @@ Seven-mode dashboard selection for DVSwitch: **BM · TGIF · STFU · YSF · P25 
 
 `dvswitch-mode-buttons.sh` is the primary installer. It creates the BM/TGIF presets and installs the complete tested mode-button path:
 
-- BM/TGIF MMDVM Bridge and Analog Bridge preset switching.
+- BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
 - Standalone DMR Master card rendering for BM, TGIF, and STFU.
 - STFU friendly-name lookup using the BM talkgroup list.
@@ -42,18 +42,26 @@ sudo ./dvswitch-mode-buttons.sh --install
 
 The check makes no changes. Installation also validates PHP syntax and restarts Apache.
 
+## Uninstall
+
+```bash
+sudo ./dvswitch-mode-buttons.sh --uninstall
+```
+
+Uninstall removes both mode helpers, the target-state helper, endpoint, sudoers entry, dashboard button block, presets, and saved state. If an older standalone DMR helper was backed up before consolidation, uninstall restores it. It also restores the most recent saved `status.php` and `dvswitch.sh` copies while keeping all backups.
+
 ## Installed state and backups
 
 ```text
 /etc/dvswitch-mode-buttons/dmr-presets/
 /usr/local/sbin/dvswitch-mode-buttons
 /usr/local/sbin/dvswitch-mode-targets
-/usr/local/sbin/dvswitch-dmr-network
+/usr/local/sbin/dvswitch-dmr-network -> /usr/local/sbin/dvswitch-mode-buttons (compatibility link)
 /var/lib/dvswitch-mode-buttons/
 /var/backups/dvswitch-mode-buttons/
 ```
 
-The state directory is `755` so Apache can read the card state. State files are root-owned; `mode-targets.json` remains private at `600`.
+The BM/TGIF network-switch code now lives in the same installed mode helper; the old DMR helper path remains as a compatibility symlink. `dvswitch-mode-targets` remains a separate runtime command because the patched `dvswitch.sh tune` path invokes it directly to save and retrieve targets. The state directory is `755` so Apache can read the card state. State files are root-owned; `mode-targets.json` remains private at `600`.
 
 ## Safety boundaries
 

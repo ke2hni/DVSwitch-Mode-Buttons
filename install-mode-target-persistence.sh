@@ -15,19 +15,24 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ -f $SCRIPT ]] || die "missing $SCRIPT"
 [[ -f dvswitch-mode-targets ]] || die 'run from the repository directory'
 [[ -f dvswitch-mode-buttons ]] || die 'missing repository dvswitch-mode-buttons'
-[[ -f dvswitch-dmr-network.sh ]] || die 'missing repository dvswitch-dmr-network.sh'
 
 install -d "$STATE_DIR"
 chown root:root "$STATE_DIR"
 chmod 755 "$STATE_DIR"
 install -d -m 700 -o root -g root "$BACKUP_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
-cp -a "$SCRIPT" "$BACKUP_DIR/dvswitch.sh.$stamp"
+if ! grep -qF "$MARKER" "$SCRIPT"; then
+  cp -a "$SCRIPT" "$BACKUP_DIR/dvswitch.sh.$stamp"
+fi
 cp -a "$MODE_HELPER" "$BACKUP_DIR/dvswitch-mode-buttons.$stamp" 2>/dev/null || true
 cp -a "$DMR_HELPER" "$BACKUP_DIR/dvswitch-dmr-network.$stamp" 2>/dev/null || true
 install -o root -g root -m 755 dvswitch-mode-targets "$TARGET_HELPER"
 install -o root -g root -m 755 dvswitch-mode-buttons "$MODE_HELPER"
-install -o root -g root -m 755 dvswitch-dmr-network.sh "$DMR_HELPER"
+# Keep the historical command path as a compatibility symlink to the unified mode helper.
+link_tmp="${DMR_HELPER}.tmp.$$"
+rm -f "$link_tmp"
+ln -s "$MODE_HELPER" "$link_tmp"
+mv -Tf "$link_tmp" "$DMR_HELPER"
 
 python3 - "$SCRIPT" "$MARKER" <<'PY'
 import os, sys, tempfile
@@ -75,7 +80,7 @@ finally:
     if os.path.exists(tmp): os.unlink(tmp)
 PY
 
-python3 - "$MODE_HELPER" "$DMR_HELPER" <<'PY'
+python3 - "$MODE_HELPER" <<'PY'
 import os, sys, tempfile
 
 for path in sys.argv[1:]:
@@ -93,17 +98,6 @@ if [ -x /usr/local/sbin/dvswitch-mode-targets ]; then
   target=$(/usr/local/sbin/dvswitch-mode-targets get "$mode" 2>/dev/null || true)
   [ -n "$target" ] && "$MODE_CMD" tune "$target"
 fi'''
-    else:
-        old = 'systemctl is-active --quiet analog_bridge mmdvm_bridge || die "DVSwitch service verification failed"'
-        new = old + '''
-install -d /var/lib/dvswitch-mode-buttons
-chown root:root /var/lib/dvswitch-mode-buttons
-chmod 755 /var/lib/dvswitch-mode-buttons
-printf '%s\\n' "$network" > /var/lib/dvswitch-mode-buttons/current-mode
-chown root:root /var/lib/dvswitch-mode-buttons/current-mode
-chmod 644 /var/lib/dvswitch-mode-buttons/current-mode
-target=$(/usr/local/sbin/dvswitch-mode-targets get "$network" 2>/dev/null || true)
-[ -n "$target" ] && "$MODE_CMD" tune "$target"'''
     if text.count(old) != 1: raise SystemExit(f'expected one patch target in {path}; found {text.count(old)}')
     text = text.replace(old, new, 1)
     st = os.stat(path); fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
@@ -115,5 +109,5 @@ target=$(/usr/local/sbin/dvswitch-mode-targets get "$network" 2>/dev/null || tru
 PY
 
 php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'dashboard PHP validation failed'
-bash -n "$SCRIPT" "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER"
+bash -n "$SCRIPT" "$MODE_HELPER" "$TARGET_HELPER"
 echo "PASS: per-mode target persistence installed. Backup: $BACKUP_DIR (timestamp $stamp)"
