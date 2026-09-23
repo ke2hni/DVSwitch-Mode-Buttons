@@ -12,20 +12,24 @@ index 6c51e26..fd7c6eb 100644
  ## Installed state and backups
  
 diff --git a/dvswitch-mode-buttons.sh b/dvswitch-mode-buttons.sh
-index cdf14b9..37e98e2 100755
+index cdf14b9..8396010 100755
 --- a/dvswitch-mode-buttons.sh
 +++ b/dvswitch-mode-buttons.sh
-@@ -1,7 +1,8 @@
+@@ -1,11 +1,12 @@
  #!/usr/bin/env bash
  set -Eeuo pipefail
  
 -VERSION="1.0.2-unified-dmr-switch-uninstall"
 +VERSION="1.0.3-owned-shared-file-uninstall"
-+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
  INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
  ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
  VAR="/var/lib/dvswitch/dvs/var.txt"
-@@ -28,16 +29,20 @@ bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./install-mode-target-pe
+ TARGET="/usr/share/dvswitch/index.php"
++STATUS_TARGET="/usr/share/dvswitch/include/status.php"
+ MODE_HELPER="/usr/local/sbin/dvswitch-mode-buttons"
+ DMR_HELPER="/usr/local/sbin/dvswitch-dmr-network"
+ TARGET_HELPER="/usr/local/sbin/dvswitch-mode-targets"
+@@ -28,47 +29,244 @@ bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./install-mode-target-pe
  BACKUP_DIR=/var/backups/dvswitch-mode-buttons
  backup(){
    install -d -m 700 -o root -g root "$BACKUP_DIR"
@@ -50,8 +54,9 @@ index cdf14b9..37e98e2 100755
    latest_dmr_helper=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name 'dvswitch-dmr-network.*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')
    backup "$TARGET"
    backup "$ENDPOINT"
-@@ -45,30 +50,16 @@ uninstall(){
-   backup /usr/share/dvswitch/include/status.php
+   backup "$SUDOERS"
+-  backup /usr/share/dvswitch/include/status.php
++  backup "$STATUS_TARGET"
    backup /opt/MMDVM_Bridge/dvswitch.sh
    backup "$DMR_HELPER"
 -  python3 - "$TARGET" <<'PY'
@@ -69,27 +74,7 @@ index cdf14b9..37e98e2 100755
 -    with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
 -    st=os.stat(path); os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 -PY
-+  [[ -f "$SCRIPT_DIR/uninstall-owned-shared-edits.py" ]] || die 'shared-file cleanup helper is missing; no installed files were changed'
-+  python3 "$SCRIPT_DIR/uninstall-owned-shared-edits.py" /usr/share/dvswitch/include/status.php /opt/MMDVM_Bridge/dvswitch.sh "$TARGET" || die 'uninstall structure was unsupported; installed controls and helpers were left in place'
-   rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
-   rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
--  [[ -z "$latest_status" ]] || install -o root -g root -m 644 "$latest_status" /usr/share/dvswitch/include/status.php
--  [[ -z "$latest_bridge" ]] || install -o root -g root -m 755 "$latest_bridge" /opt/MMDVM_Bridge/dvswitch.sh
-   # Restore an older standalone helper when one was present before consolidation.
-   [[ -z "$latest_dmr_helper" ]] || cp -a "$latest_dmr_helper" "$DMR_HELPER"
-   php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'status.php validation failed after uninstall'
-   systemctl restart apache2 || die 'Apache restart failed after uninstall'
-   echo 'PASS: DVSwitch Mode Buttons removed; backups saved under /var/backups/dvswitch-mode-buttons.'
-+  echo 'PASS: Buttons-owned dashboard and bridge changes removed; other installed changes were preserved.'
- }
- 
- if [[ ${1:-} == "--uninstall" ]]; then
-diff --git a/uninstall-owned-shared-edits.py b/uninstall-owned-shared-edits.py
-new file mode 100644
-index 0000000..e37833c
---- /dev/null
-+++ b/uninstall-owned-shared-edits.py
-@@ -0,0 +1,207 @@
++  python3 - "$STATUS_TARGET" /opt/MMDVM_Bridge/dvswitch.sh "$TARGET" <<'PY_BUTTONS_UNINSTALL' || die 'uninstall structure was unsupported; installed controls and helpers were left in place'
 +#!/usr/bin/env python3
 +# SPDX-License-Identifier: MIT
 +
@@ -269,7 +254,7 @@ index 0000000..e37833c
 +
 +def main() -> None:
 +    if len(sys.argv) != 4:
-+        raise SystemExit("Usage: uninstall-owned-shared-edits.py STATUS.PHP DVSWITCH.SH INDEX.PHP")
++        raise SystemExit("Usage: embedded uninstall program STATUS.PHP DVSWITCH.SH INDEX.PHP")
 +    status_path, bridge_path, index_path = map(Path, sys.argv[1:])
 +    status_text, status_nl, status_stat = read_target(status_path)
 +    bridge_text, bridge_nl, bridge_stat = read_target(bridge_path)
@@ -297,28 +282,66 @@ index 0000000..e37833c
 +        main()
 +    except (OSError, UnicodeError, UnsafeStructure) as error:
 +        raise SystemExit(f"ERROR: {error}; shared files were left unchanged")
-diff --git a/tests/test-uninstall-shared-edits.py b/tests/test-uninstall-shared-edits.py
++PY_BUTTONS_UNINSTALL
+   rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
+   rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
+-  [[ -z "$latest_status" ]] || install -o root -g root -m 644 "$latest_status" /usr/share/dvswitch/include/status.php
+-  [[ -z "$latest_bridge" ]] || install -o root -g root -m 755 "$latest_bridge" /opt/MMDVM_Bridge/dvswitch.sh
+   # Restore an older standalone helper when one was present before consolidation.
+   [[ -z "$latest_dmr_helper" ]] || cp -a "$latest_dmr_helper" "$DMR_HELPER"
+-  php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'status.php validation failed after uninstall'
++  php -l "$STATUS_TARGET" >/dev/null || die 'status.php validation failed after uninstall'
+   systemctl restart apache2 || die 'Apache restart failed after uninstall'
+   echo 'PASS: DVSwitch Mode Buttons removed; backups saved under /var/backups/dvswitch-mode-buttons.'
++  echo 'PASS: Buttons-owned dashboard and bridge changes removed; other installed changes were preserved.'
+ }
+ 
+ if [[ ${1:-} == "--uninstall" ]]; then
+@@ -356,7 +554,7 @@ stat=path.stat(); fd,tmp=tempfile.mkstemp(dir=path.parent)
+ with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
+ os.chown(tmp,stat.st_uid,stat.st_gid); os.chmod(tmp,stat.st_mode & 0o7777); os.replace(tmp,path)
+ PY
+-php -l /usr/share/dvswitch/include/status.php >/dev/null || die 'state-aware DMR card upgrade failed'
++php -l "$STATUS_TARGET" >/dev/null || die 'state-aware DMR card upgrade failed'
+ install -d /var/lib/dvswitch-mode-buttons
+ chown root:root /var/lib/dvswitch-mode-buttons
+ chmod 755 /var/lib/dvswitch-mode-buttons
+@@ -366,7 +564,7 @@ for state_file in current-mode last-dmr-card-mode last-dmr-network; do
+     chmod 644 "/var/lib/dvswitch-mode-buttons/$state_file"
+   fi
+ done
+-php -l /usr/share/dvswitch/include/status.php
++php -l "$STATUS_TARGET"
+ systemctl restart apache2
+ echo "PASS: mode helpers, target persistence, standalone DMR card, and permissions installed."
+ echo '!!!!!!!!   NOTICE !!!!!!!!'
+diff --git atests/test-uninstall-shared-edits.py btests/test-uninstall-shared-edits.py
 new file mode 100644
-index 0000000..30ac683
+index 0000000..5cb5937
 --- /dev/null
-+++ b/tests/test-uninstall-shared-edits.py
-@@ -0,0 +1,115 @@
++++ btests/test-uninstall-shared-edits.py
+@@ -0,0 +1,120 @@
 +#!/usr/bin/env python3
 +"""Verify uninstall removes only recognized Mode Buttons shared-file edits."""
 +
 +from __future__ import annotations
 +
-+import importlib.util
++import re
++import types
 +import unittest
 +from pathlib import Path
 +
 +ROOT = Path(__file__).resolve().parents[1]
-+SPEC = importlib.util.spec_from_file_location(
-+    "uninstall_owned_shared_edits", ROOT / "uninstall-owned-shared-edits.py"
++MANAGER = ROOT / "dvswitch-mode-buttons.sh"
++MANAGER_TEXT = MANAGER.read_text()
++MATCH = re.search(
++    r"<<'PY_BUTTONS_UNINSTALL'[^\n]*\n(.*?)^PY_BUTTONS_UNINSTALL$",
++    MANAGER_TEXT,
++    re.MULTILINE | re.DOTALL,
 +)
-+assert SPEC and SPEC.loader
-+PATCH = importlib.util.module_from_spec(SPEC)
-+SPEC.loader.exec_module(PATCH)
++assert MATCH, "embedded uninstall program is missing"
++PATCH = types.ModuleType("buttons_uninstall_test")
++exec(compile(MATCH.group(1), str(MANAGER), "exec"), PATCH.__dict__)
 +
 +
 +def php_function(name: str) -> str:
@@ -355,10 +378,10 @@ index 0000000..30ac683
 +    def test_manager_uninstall_uses_structural_cleanup_without_snapshot_restore(self) -> None:
 +        manager = (ROOT / "dvswitch-mode-buttons.sh").read_text()
 +
-+        cleanup_at = manager.index("uninstall-owned-shared-edits.py")
++        cleanup_at = manager.index("PY_BUTTONS_UNINSTALL")
 +        delete_at = manager.index('rm -f "$MODE_HELPER"')
 +        self.assertLess(cleanup_at, delete_at)
-+        self.assertIn('backup /usr/share/dvswitch/include/status.php', manager)
++        self.assertIn('backup "$STATUS_TARGET"', manager)
 +        self.assertIn('backup /opt/MMDVM_Bridge/dvswitch.sh', manager)
 +        self.assertNotIn("latest_status", manager)
 +        self.assertNotIn("latest_bridge", manager)
