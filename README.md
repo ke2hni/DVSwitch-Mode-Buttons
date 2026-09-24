@@ -23,15 +23,21 @@ green **Code** button on GitHub or use the
 **[direct ZIP download](https://github.com/ke2hni/DVSwitch-Mode-Buttons/archive/refs/heads/main.zip)**.
 Do not download the scripts individually.
 
-### 2. Use the installer menu
+### 2. Install or upgrade
 
-Run the manager without arguments:
+Run the installer without arguments to open its three-option menu:
 
 ```bash
 sudo ./dvswitch-mode-buttons.sh
 ```
 
-`dvswitch-mode-buttons.sh` is the primary installer. It creates the BM/TGIF presets and installs the complete tested mode-button path:
+```text
+1) Install / upgrade
+2) Uninstall
+3) Exit
+```
+
+Choose **1** to install the buttons or upgrade an existing installation to the current repository version. During that operation, the installer checks the BM and TGIF passwords in `/var/lib/dvswitch/dvs/var.txt`. If the alternate network's password is missing or still `passw0rd`, it prompts for that password and writes it into the generated `MMDVM_Bridge.<MODE>.ini` preset. A blank password or the unchanged default stops the install as incomplete; it does not claim success or create a preset using the default credential. The installer then installs the complete tested mode-button path:
 
 - BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
@@ -59,20 +65,20 @@ Run from a configured DVSwitch node as root. The installer requires:
 
 BM/TGIF values are read from `var.txt`; missing credentials are requested interactively and never guessed.
 
-## Check and install
+## Read-only check
 
 ```bash
 cd ~/DVSwitch-Mode-Buttons
 sudo ./dvswitch-mode-buttons.sh --check
-sudo ./dvswitch-mode-buttons.sh --install
 ```
 
-The check makes no changes. Installation also validates PHP syntax and restarts Apache.
+`--check` makes no changes and reports whether either network password in `var.txt` is missing or still the default. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache.
 
 ## Uninstall
 
 ```bash
-sudo ./dvswitch-mode-buttons.sh --uninstall
+sudo ./dvswitch-mode-buttons.sh
+# Select 2) Uninstall
 ```
 
 Uninstall removes both mode helpers, the target-state helper, endpoint, sudoers entry, dashboard button block, presets, and saved state. If an older standalone DMR helper was backed up before consolidation, uninstall restores it. Before removing runtime files, it backs up the dashboard and bridge files and surgically removes only structurally recognized Mode Buttons changes from `index.php`, `status.php`, and `dvswitch.sh`. DMR rows are restored to the DVSwitch-Mods implementation when its helper is present, or to the factory rows otherwise. It never restores a whole-file snapshot over changes another installer made. If an owned block is incomplete or ambiguous, uninstall stops before changing shared files or removing helpers.
