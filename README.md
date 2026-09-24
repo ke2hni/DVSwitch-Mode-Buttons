@@ -2,7 +2,34 @@
 
 Seven-mode dashboard selection for DVSwitch: **BM · TGIF · STFU · YSF · P25 · NXDN · D-Star**.
 
-## Installer
+## 🚀 Quick start — install everything
+
+### 1. Download the complete repository
+
+Run this from your home directory:
+
+```bash
+cd ~ && git clone https://github.com/ke2hni/DVSwitch-Mode-Buttons.git && cd DVSwitch-Mode-Buttons
+```
+
+Already downloaded it? Update it instead:
+
+```bash
+cd ~/DVSwitch-Mode-Buttons && git pull --ff-only
+```
+
+You can also download one ZIP containing the entire repository from the
+green **Code** button on GitHub or use the
+**[direct ZIP download](https://github.com/ke2hni/DVSwitch-Mode-Buttons/archive/refs/heads/main.zip)**.
+Do not download the scripts individually.
+
+### 2. Use the installer menu
+
+Run the manager without arguments:
+
+```bash
+sudo ./dvswitch-mode-buttons.sh
+```
 
 `dvswitch-mode-buttons.sh` is the primary installer. It creates the BM/TGIF presets and installs the complete tested mode-button path:
 
