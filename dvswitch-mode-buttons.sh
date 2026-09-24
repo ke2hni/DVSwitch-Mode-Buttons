@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -u
 
-VERSION="1.0.0-test4"
+VERSION="1.0.0-test5"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
-PRESET_DIR="/etc/dvswitch-mode-buttons"
+PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
 
 die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
@@ -25,12 +25,24 @@ case "$network" in
 esac
 
 getvar(){ awk -F= -v key="$1" '$1 == key {sub(/^[^=]*=/,""); sub(/\r$/,""); print; exit}' "$VAR"; }
+password_state(){
+  case "$1" in
+    "") echo "missing";;
+    passw0rd) echo "default password";;
+    *) echo "configured";;
+  esac
+}
 
 if [[ $mode == check ]]; then
   echo "DVSwitch Mode Buttons $VERSION"
   echo "MMDVM_Bridge.ini: $INI"
   echo "Current DMR network: $default_net ($network)"
   [[ -f "$VAR" ]] && echo "DVSwitch var.txt: found" || echo "DVSwitch var.txt: not found"
+  echo "Preset directory: $PRESET_DIR"
+  if [[ -f "$VAR" ]]; then
+    echo "BM password status: $(password_state "$(getvar bm_password)")"
+    echo "TGIF password status: $(password_state "$(getvar tgif_password)")"
+  fi
   echo "PASS: installer prerequisites checked; no files changed."
   echo "BM address: $(getvar bm_address)"
   echo "TGIF address: $(getvar tgif_address)"
