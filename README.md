@@ -49,6 +49,10 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 The standalone DMR card is self-contained and does not require the `DVSwitch-Mods` repository.
 Its BM, TGIF, and STFU cards display the `Room` label above the current
 network/talkgroup name.
+The label keeps its light-theme color in the standard dashboard. When the
+DVSwitch-Mods Dark Mode overlay is installed, its theme stylesheet changes the
+label to a readable light color; this works whether Dark Mode is installed
+before or after Mode Buttons.
 
 ## Requirements
 

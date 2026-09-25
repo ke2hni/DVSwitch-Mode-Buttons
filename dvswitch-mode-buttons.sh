@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test7"
+VERSION="1.0.0-test8"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -563,13 +563,20 @@ text=text.replace(old_display,new_display,1)
 text=text.replace(old_v5_display,new_display,1)
 plain_master = "return 'Room<br>'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');"
 plain_display = "return 'Room<br>'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');"
-formatted_master = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
-formatted_display = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
-if text.count(plain_master) == 1 and text.count(plain_display) == 1:
-    text = text.replace(plain_master, formatted_master, 1)
-    text = text.replace(plain_display, formatted_display, 1)
-elif text.count(formatted_master) == 1 and text.count(formatted_display) == 1:
+old_formatted_master = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
+old_formatted_display = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
+themed_master = "return '<span class=\"dvs-dmr-room-label\" style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
+themed_display = "return '<span class=\"dvs-dmr-room-label\" style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
+current_master = text.count(themed_master) == 1
+current_display = text.count(themed_display) == 1
+if current_master and current_display:
     pass
+elif text.count(plain_master) == 1 and text.count(plain_display) == 1:
+    text = text.replace(plain_master, themed_master, 1)
+    text = text.replace(plain_display, themed_display, 1)
+elif text.count(old_formatted_master) == 1 and text.count(old_formatted_display) == 1:
+    text = text.replace(old_formatted_master, themed_master, 1)
+    text = text.replace(old_formatted_display, themed_display, 1)
 else:
     raise SystemExit('ERROR: DMR Room-label formatting is incomplete or ambiguous')
 if 'standalone DMR Master display v5' not in text or 'dvsButtonsDmrSavedCardMode' not in text:
