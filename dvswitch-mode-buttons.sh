@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test9"
+VERSION="1.0.0-test10"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -11,6 +11,7 @@ MODE_HELPER="/usr/local/sbin/dvswitch-mode-buttons"
 DMR_HELPER="/usr/local/sbin/dvswitch-dmr-network"
 TARGET_HELPER="/usr/local/sbin/dvswitch-mode-targets"
 ENDPOINT="/usr/share/dvswitch/dvswitch-mode-buttons.php"
+TUNE_HELPER="/usr/local/sbin/dvswitch-mode-tune"
 SUDOERS="/etc/sudoers.d/dvswitch-mode-buttons"
 PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
 LEGACY_PRESET_DIR="/etc/dvswitch-mode-buttons"
@@ -21,10 +22,11 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ -f "$TARGET" ]] || die "missing $TARGET"
 [[ -f ./dvswitch-mode-buttons ]] || die 'missing unified mode helper source'
 [[ -f ./dvswitch-mode-targets ]] || die 'missing target-state helper source'
+[[ -f ./dvswitch-mode-tune ]] || die 'missing target-tuning helper source'
 [[ -f ./install-mode-target-persistence.sh ]] || die 'missing target-persistence installer'
 [[ -f ./install-standalone-dmr-master-card.sh ]] || die 'missing standalone DMR-card installer'
 grep -q '^switch_dmr_network(){' ./dvswitch-mode-buttons || die 'unified DMR switch function is missing'
-bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./install-mode-target-persistence.sh ./install-standalone-dmr-master-card.sh || die 'installer source syntax validation failed'
+bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./dvswitch-mode-tune ./install-mode-target-persistence.sh ./install-standalone-dmr-master-card.sh || die 'installer source syntax validation failed'
 
 BACKUP_DIR=/var/backups/dvswitch-mode-buttons
 backup(){
@@ -47,6 +49,7 @@ uninstall(){
   backup "$TARGET"
   backup "$ENDPOINT"
   backup "$SUDOERS"
+  backup "$TUNE_HELPER"
   backup "$STATUS_TARGET"
   backup /opt/MMDVM_Bridge/dvswitch.sh
   backup "$DMR_HELPER"
@@ -116,8 +119,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test10 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -259,7 +262,7 @@ if __name__ == "__main__":
     except (OSError, UnicodeError, UnsafeStructure) as error:
         raise SystemExit(f"ERROR: {error}; shared files were left unchanged")
 PY_BUTTONS_UNINSTALL
-  rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
+  rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$TUNE_HELPER" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
   rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
   # Restore an older standalone helper when one was present before consolidation.
   [[ -z "$latest_dmr_helper" ]] || cp -a "$latest_dmr_helper" "$DMR_HELPER"
@@ -295,10 +298,38 @@ esac
 
 install_dashboard_components(){
   install -d -o root -g root -m 755 "$(dirname "$ENDPOINT")" /etc/sudoers.d
+  install -o root -g root -m 755 ./dvswitch-mode-tune "$TUNE_HELPER"
   install -o root -g root -m 644 /dev/stdin "$ENDPOINT" <<'PHP'
 <?php
 declare(strict_types=1);
 $allowed = array('BM', 'TGIF', 'STFU', 'YSF', 'P25', 'NXDN', 'DSTAR');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['target'])) {
+    $target = trim((string)$_POST['target']);
+    if (!preg_match('/^[A-Za-z0-9_-]{1,32}$/D', $target)) {
+        http_response_code(400); header('Content-Type: application/json');
+        echo json_encode(array('ok' => false, 'error' => 'Enter a valid numeric talkgroup or reflector ID.')); exit;
+    }
+    $modeFile = '/var/lib/dvswitch-mode-buttons/current-mode';
+    $mode = is_readable($modeFile) ? strtoupper(trim((string)file_get_contents($modeFile))) : '';
+    if (!in_array($mode, $allowed, true)) {
+        http_response_code(409); header('Content-Type: application/json');
+        echo json_encode(array('ok' => false, 'error' => 'Current mode is unavailable. Select a mode with the dashboard buttons first.')); exit;
+    }
+    $pipes = array();
+    $process = proc_open(array('/usr/bin/sudo', '/usr/local/sbin/dvswitch-mode-tune'),
+        array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+    if (!is_resource($process)) {
+        http_response_code(500); header('Content-Type: application/json');
+        echo json_encode(array('ok' => false, 'error' => 'Unable to start tuning command.')); exit;
+    }
+    fwrite($pipes[0], $target . "\n"); fclose($pipes[0]);
+    $output = stream_get_contents($pipes[1]); fclose($pipes[1]);
+    $error = stream_get_contents($pipes[2]); fclose($pipes[2]);
+    $status = proc_close($process);
+    header('Content-Type: application/json');
+    echo json_encode(array('ok' => $status === 0, 'mode' => $mode,
+        'message' => trim((string)$output), 'error' => trim((string)$error), 'status' => $status)); exit;
+}
 if (isset($_GET['status'])) {
     $mode = '';
     $files = glob('/tmp/ABInfo_*.json');
@@ -339,14 +370,15 @@ www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons YSF
 www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons P25
 www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons NXDN
 www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-buttons DSTAR
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-tune
 SUDO
   visudo -cf "$SUDOERS" >/dev/null || die 'sudoers validation failed'
   php -l "$ENDPOINT" >/dev/null || die 'endpoint PHP validation failed'
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test10 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -356,11 +388,11 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test10 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
-<style>#dvs-mode-buttons{text-align:center;margin:4px auto 8px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}</style>
-<script>(function(){const box=document.getElementById('dvs-mode-buttons'),buttons=[...box.querySelectorAll('button')];let syncAttempts=0;function select(mode,network){buttons.forEach(b=>b.classList.toggle('selected',b.dataset.mode===(mode==='DMR'?(network||''):mode)))}async function refresh(){try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?status=1',{cache:'no-store'}),j=await r.json();if(j.ok)select(j.mode,j.network)}catch(e){}if(syncAttempts++<4)setTimeout(refresh,1500)}buttons.forEach(b=>b.addEventListener('click',async()=>{buttons.forEach(x=>x.disabled=true);try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?mode='+encodeURIComponent(b.dataset.mode)),j=await r.json();if(!j.ok)throw new Error(j.output||j.error||'switch failed');select(j.mode,j.network)}catch(e){alert('Mode switch failed: '+e.message)}finally{buttons.forEach(x=>x.disabled=false)}}));refresh()})();</script>'''
+<style>#dvs-mode-buttons{text-align:center;margin:4px auto 5px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}#dvs-target-tuner{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;min-height:34px}#dvs-target-input{box-sizing:border-box;width:min(320px,55vw);height:32px;padding:4px 8px}#dvs-target-submit{min-width:64px;height:32px;padding:4px 10px}#dvs-target-message{min-width:0;font-size:12px;text-align:left}#dvs-target-message.error{color:#d9534f}@media(max-width:600px){#dvs-target-tuner{gap:4px}#dvs-target-input{width:45vw}#dvs-target-message{max-width:28vw;overflow-wrap:anywhere}}</style>
+<script>(function(){document.addEventListener('DOMContentLoaded',function(){const herd=document.getElementById('lastHerd');if(!herd)return;herd.insertAdjacentHTML('beforebegin',`<form id="dvs-target-tuner" aria-label="Tune talkgroup or reflector"><input id="dvs-target-input" name="target" type="text" inputmode="numeric" maxlength="32" autocomplete="off" placeholder="Enter TG / reflector ID" aria-label="Talkgroup or reflector ID"><button id="dvs-target-submit" type="submit" class="button link">Tune</button><span id="dvs-target-message" role="status" aria-live="polite"></span></form>`);const box=document.getElementById('dvs-mode-buttons'),buttons=[...box.querySelectorAll('button')],form=document.getElementById('dvs-target-tuner'),input=document.getElementById('dvs-target-input'),submit=document.getElementById('dvs-target-submit'),message=document.getElementById('dvs-target-message');let syncAttempts=0;function select(mode,network){buttons.forEach(b=>b.classList.toggle('selected',b.dataset.mode===(mode==='DMR'?(network||''):mode)))}async function refresh(){try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?status=1',{cache:'no-store'}),j=await r.json();if(j.ok)select(j.mode,j.network)}catch(e){}if(syncAttempts++<4)setTimeout(refresh,1500)}buttons.forEach(b=>b.addEventListener('click',async()=>{buttons.forEach(x=>x.disabled=true);try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?mode='+encodeURIComponent(b.dataset.mode)),j=await r.json();if(!j.ok)throw new Error(j.output||j.error||'switch failed');select(j.mode,j.network);message.textContent='';message.classList.remove('error')}catch(e){alert('Mode switch failed: '+e.message)}finally{buttons.forEach(x=>x.disabled=false)}}));form.addEventListener('submit',async e=>{e.preventDefault();const target=input.value.trim();message.textContent='';message.classList.remove('error');if(!/^[A-Za-z0-9_-]{1,32}$/.test(target)){message.textContent='Enter a valid ID';message.classList.add('error');return}submit.disabled=true;input.disabled=true;try{const body=new URLSearchParams({target});const r=await fetch('/dvswitch/dvswitch-mode-buttons.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});const j=await r.json();if(!j.ok)throw new Error(j.error||'Tune failed');message.textContent='Tuned '+target+' ('+j.mode+')'}catch(e){message.textContent=e.message;message.classList.add('error')}finally{submit.disabled=false;input.disabled=false;input.focus()}});refresh()})})();</script>'''
     rx_move_marker='// DVSwitch-Mods: RX Monitor left of status v1'
     if rx_move_marker in text:
         if text.count(rx_move_marker) != 1:
@@ -381,7 +413,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->' "$TARGET" || die 'dashboard button block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test10 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -445,7 +477,7 @@ PY_BUTTONS_CHECK
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9) -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."

@@ -41,12 +41,13 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 
 - BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
+- A single-line dashboard control for tuning the active mode to a talkgroup or reflector ID. The field uses the existing `dvswitch.sh tune` command through a dedicated root helper; it does not use or install the separate DVS Mode Switcher application.
 - Standalone DMR Master card rendering for BM, TGIF, and STFU.
 - STFU friendly-name lookup using the BM talkgroup list.
 - Friendly-name wrapping inside the DMR card.
 - Apache-readable DMR card state that remains writable only by root.
 
-The dashboard mode buttons work whether they are installed before or after the
+The dashboard mode buttons and inline talkgroup/reflector tuner work whether they are installed before or after the
 DVSwitch-Mods RX Monitor position modification. If RX Monitor has already moved
 to the left status column, the installer places the mode buttons in the vacated
 centered area and preserves the relocated RX Monitor control.
@@ -81,7 +82,7 @@ cd ~/DVSwitch-Mode-Buttons
 sudo ./dvswitch-mode-buttons.sh --check
 ```
 
-`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, and reports whether either network password in `var.txt` is missing or still the default. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
+`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, and reports whether either network password in `var.txt` is missing or still the default. The tuner submits only validated IDs, reads the active mode from the Mode Buttons state, and invokes a dedicated helper with no command-line arguments; the helper reads the ID from standard input and runs `dvswitch.sh tune`. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
 
 ## Uninstall
 
@@ -90,7 +91,7 @@ sudo ./dvswitch-mode-buttons.sh
 # Select 2) Uninstall
 ```
 
-Uninstall removes both mode helpers, the target-state helper, endpoint, sudoers entry, dashboard button block, presets, and saved state. If an older standalone DMR helper was backed up before consolidation, uninstall restores it. Before removing runtime files, it backs up the dashboard and bridge files and surgically removes only structurally recognized Mode Buttons changes from `index.php`, `status.php`, and `dvswitch.sh`. DMR rows are restored to the DVSwitch-Mods implementation when its helper is present, or to the factory rows otherwise. It never restores a whole-file snapshot over changes another installer made. If an owned block is incomplete or ambiguous, uninstall stops before changing shared files or removing helpers.
+Uninstall removes both mode helpers, the target-state helper, tuner helper, endpoint, sudoers entry, dashboard controls block, presets, and saved state. If an older standalone DMR helper was backed up before consolidation, uninstall restores it. Before removing runtime files, it backs up the dashboard and bridge files and surgically removes only structurally recognized Mode Buttons changes from `index.php`, `status.php`, and `dvswitch.sh`. DMR rows are restored to the DVSwitch-Mods implementation when its helper is present, or to the factory rows otherwise. It never restores a whole-file snapshot over changes another installer made. If an owned block is incomplete or ambiguous, uninstall stops before changing shared files or removing helpers.
 
 ## Installed state and backups
 
@@ -98,6 +99,7 @@ Uninstall removes both mode helpers, the target-state helper, endpoint, sudoers 
 /etc/dvswitch-mode-buttons/dmr-presets/
 /usr/local/sbin/dvswitch-mode-buttons
 /usr/local/sbin/dvswitch-mode-targets
+/usr/local/sbin/dvswitch-mode-tune
 /usr/local/sbin/dvswitch-dmr-network -> /usr/local/sbin/dvswitch-mode-buttons (compatibility link)
 /var/lib/dvswitch-mode-buttons/
 /var/backups/dvswitch-mode-buttons/
