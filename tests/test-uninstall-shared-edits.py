@@ -32,6 +32,10 @@ def status_fixture(with_mods: bool = True) -> str:
         "dvsButtonsDmrName",
         "dvsButtonsDmrMasterHeading",
         "dvsButtonsDmrMasterDisplay",
+        "dvsButtonsDmrSavedCardMode",
+        "dvsButtonsDmrSavedNetwork",
+        "dvsButtonsDmrCurrentMode",
+        "dvsButtonsDmrSavedTalkgroup",
     )
     helper = "\n".join(php_function(name) for name in names)
     mods = ""
@@ -39,7 +43,7 @@ def status_fixture(with_mods: bool = True) -> str:
         mods = php_function("dvsModsDmrMasterHeading") + php_function("dvsModsDmrMasterDisplay")
     return (
         "<?php\ninclude_once dirname(dirname(__FILE__)).'/include/functions.php';\n"
-        + PATCH.STATUS_MARKER.pattern.replace("^", "").replace("$", "").replace("[1-5]", "5")
+        + PATCH.STATUS_MARKER.pattern.replace("^", "").replace("$", "").replace("[1-6]", "6")
         + "\n"
         + helper
         + "// DVSwitch-Mods: P25/NXDN friendly names remain present\n"
@@ -68,7 +72,7 @@ class SharedFileUninstallTests(unittest.TestCase):
         cleaned, changed = PATCH.patch_status(original)
 
         self.assertTrue(changed)
-        self.assertNotIn("standalone DMR Master display v5", cleaned)
+        self.assertNotIn("standalone DMR Master display v6", cleaned)
         self.assertNotIn("dvsButtonsDmrMasterHeading(", cleaned)
         self.assertIn("DVSwitch-Mods: P25/NXDN friendly names remain present", cleaned)
         self.assertIn("function dvsModsDmrMasterHeading(", cleaned)

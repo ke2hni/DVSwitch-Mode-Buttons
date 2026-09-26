@@ -89,7 +89,7 @@ output_buttons = 'echo "<tr><td  style=\\"background: #ffffed;\\" colspan=\\"2\\
 
 heading_matches = [h for h in (heading_factory, heading_dvmods) if text.count(h) == 1]
 if text.count(heading_buttons) == 1:
-    print('ALREADY INSTALLED: standalone DMR Master display v5 is present.')
+    print('ALREADY INSTALLED: standalone DMR Master card is present; manager will apply state-aware updates.')
     raise SystemExit(0)
 if len(heading_matches) != 1:
     raise SystemExit(f'ERROR: expected one active supported DMR Master heading; found {len(heading_matches)}')

@@ -30,3 +30,10 @@ if op == 'save':
     os.chmod(tmp,0o600); os.replace(tmp,path); print(f'PASS: saved {mode} target: {target}')
 else: print(data[mode]['target'])
 PY
+if [[ "$1" == save && ( "$mode" == BM || "$mode" == TGIF || "$mode" == STFU ) && "${target:-}" =~ ^[0-9]+$ ]]; then
+  last_dmr_tmp=$(mktemp "$STATE_DIR/.last-dmr-talkgroup.XXXXXX")
+  printf '%s\n' "$target" > "$last_dmr_tmp"
+  chown root:root "$last_dmr_tmp"
+  chmod 644 "$last_dmr_tmp"
+  mv -f "$last_dmr_tmp" "$STATE_DIR/last-dmr-talkgroup"
+fi

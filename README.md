@@ -42,7 +42,7 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 - BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
 - A single-line dashboard control for tuning the active mode to a talkgroup or reflector ID. The field uses the existing `dvswitch.sh tune` command through a dedicated root helper; it does not use or install the separate DVS Mode Switcher application.
-- Standalone DMR Master card rendering for BM, TGIF, and STFU.
+- Standalone DMR Master card rendering for BM, TGIF, and STFU; while YSF, P25, NXDN, or D-Star is active, it retains the last DMR talkgroup instead of displaying that mode’s tune ID.
 - STFU friendly-name lookup using the BM talkgroup list.
 - Friendly-name wrapping inside the DMR card.
 - Apache-readable DMR card state that remains writable only by root.
@@ -102,6 +102,7 @@ Uninstall removes both mode helpers, the target-state helper, tuner helper, endp
 /usr/local/sbin/dvswitch-mode-tune
 /usr/local/sbin/dvswitch-dmr-network -> /usr/local/sbin/dvswitch-mode-buttons (compatibility link)
 /var/lib/dvswitch-mode-buttons/
+/var/lib/dvswitch-mode-buttons/last-dmr-talkgroup (Apache-readable saved DMR target)
 /var/backups/dvswitch-mode-buttons/
 ```
 

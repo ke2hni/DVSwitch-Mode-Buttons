@@ -16,6 +16,15 @@ class DmrRoomLabelThemeTest(unittest.TestCase):
         self.assertIn("if ($talkgroup === '')", CARD_INSTALLER)
         self.assertIn("dvsButtonsDmrMasterDisplay($master, $abinfo)", INSTALLER)
 
+    def test_non_dmr_modes_use_the_saved_dmr_target(self):
+        self.assertIn("dvsButtonsDmrSavedTalkgroup()", INSTALLER)
+        self.assertIn("dvsButtonsDmrCurrentMode($abinfo)", INSTALLER)
+        self.assertIn("last-dmr-talkgroup", INSTALLER)
+        self.assertIn("display v6", INSTALLER)
+        target_helper = (ROOT / "dvswitch-mode-targets").read_text()
+        self.assertIn('"$STATE_DIR/last-dmr-talkgroup"', target_helper)
+        self.assertIn('"$mode" == BM || "$mode" == TGIF || "$mode" == STFU', target_helper)
+
     def test_upgrade_migrates_plain_and_previously_formatted_labels(self):
         self.assertIn("plain_master =", INSTALLER)
         self.assertIn("old_formatted_master =", INSTALLER)
