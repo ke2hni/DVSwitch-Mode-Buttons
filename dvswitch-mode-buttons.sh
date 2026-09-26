@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test8"
+VERSION="1.0.0-test9"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -116,7 +116,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->'
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -188,12 +189,12 @@ def patch_bridge(text: str) -> tuple[str, bool]:
 
 
 def patch_index(text: str) -> tuple[str, bool]:
-    marker_count = text.count(INDEX_MARKER)
-    if marker_count == 0:
+    markers = list(INDEX_MARKERS.finditer(text))
+    if not markers:
         return text, False
-    if marker_count != 1:
+    if len(markers) != 1:
         raise UnsafeStructure("index.php has duplicate Mode Buttons markers")
-    start = text.index(INDEX_MARKER)
+    start = markers[0].start()
     end = text.lower().find("</script>", start)
     if end < 0:
         raise UnsafeStructure("index.php is missing the Mode Buttons script end anchor")
@@ -344,27 +345,43 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->'
-if marker in text:
-    start=text.index(marker)
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9) -->')
+owned_matches=list(owned_marker.finditer(text))
+if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
+if owned_matches:
+    start=owned_matches[0].start()
     end=text.lower().find('</script>', start)
     if end < 0: raise SystemExit('ERROR: existing mode-button script end anchor not found')
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <style>#dvs-mode-buttons{text-align:center;margin:4px auto 8px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}</style>
 <script>(function(){const box=document.getElementById('dvs-mode-buttons'),buttons=[...box.querySelectorAll('button')];let syncAttempts=0;function select(mode,network){buttons.forEach(b=>b.classList.toggle('selected',b.dataset.mode===(mode==='DMR'?(network||''):mode)))}async function refresh(){try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?status=1',{cache:'no-store'}),j=await r.json();if(j.ok)select(j.mode,j.network)}catch(e){}if(syncAttempts++<4)setTimeout(refresh,1500)}buttons.forEach(b=>b.addEventListener('click',async()=>{buttons.forEach(x=>x.disabled=true);try{const r=await fetch('/dvswitch/dvswitch-mode-buttons.php?mode='+encodeURIComponent(b.dataset.mode)),j=await r.json();if(!j.ok)throw new Error(j.output||j.error||'switch failed');select(j.mode,j.network)}catch(e){alert('Mode switch failed: '+e.message)}finally{buttons.forEach(x=>x.disabled=false)}}));refresh()})();</script>'''
-    anchor=re.search(r'<div style="margin-top:8px;">', text, re.I)
-    if not anchor: raise SystemExit('ERROR: RX Monitor anchor not found')
-    text=text[:anchor.start()]+block+'\n'+text[anchor.start():]
+    rx_move_marker='// DVSwitch-Mods: RX Monitor left of status v1'
+    if rx_move_marker in text:
+        if text.count(rx_move_marker) != 1:
+            raise SystemExit('ERROR: RX Monitor relocation marker is ambiguous')
+        moved_rx=re.compile(r'// DVSwitch-Mods: RX Monitor left of status v1\s*\n\s*echo \'<div style="margin-top:8px;text-align:center;">\';\s*\n\s*if \( RXMONITOR == "YES" \)')
+        if len(moved_rx.findall(text)) != 1:
+            raise SystemExit('ERROR: RX Monitor relocation block is incomplete or unsupported')
+        center=re.search(r'(<div class="content"><center>)(\s*)(</center>)', text, re.I)
+        if not center or center.group(2).strip():
+            raise SystemExit('ERROR: vacated centered RX Monitor area not found')
+        insert_at=center.start(3)
+        text=text[:insert_at]+block+'\n'+text[insert_at:]
+    else:
+        anchor=re.search(r'<div style="margin-top:8px;">', text, re.I)
+        if not anchor: raise SystemExit('ERROR: RX Monitor anchor not found and Mods relocation was not detected')
+        text=text[:anchor.start()]+block+'\n'+text[anchor.start():]
     st=os.stat(path); fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path))
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->' "$TARGET" || die 'dashboard button block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test9 -->' "$TARGET" || die 'dashboard button block was not installed'
 }
 
 network="$(awk '
@@ -387,6 +404,32 @@ password_state(){
 }
 
 if [[ $mode == check ]]; then
+  python3 - "$TARGET" <<'PY_BUTTONS_CHECK'
+import re, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+text = path.read_text(encoding='utf-8')
+button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9) -->', text))
+if len(button_markers) > 1:
+    raise SystemExit('ERROR: duplicate Mode Buttons blocks found')
+if button_markers:
+    start = button_markers[0].start()
+    end = text.lower().find('</script>', start)
+    if end < 0:
+        raise SystemExit('ERROR: existing Mode Buttons script end anchor not found')
+    text = text[:start] + text[end + len('</script>'):]
+rx_marker = '// DVSwitch-Mods: RX Monitor left of status v1'
+if rx_marker in text:
+    moved_rx = re.compile(r'// DVSwitch-Mods: RX Monitor left of status v1\s*\n\s*echo \'<div style="margin-top:8px;text-align:center;">\';\s*\n\s*if \( RXMONITOR == "YES" \)')
+    center = re.search(r'(<div class="content"><center>)(\s*)(</center>)', text, re.I)
+    if text.count(rx_marker) != 1 or len(moved_rx.findall(text)) != 1 or not center or center.group(2).strip():
+        raise SystemExit('ERROR: relocated RX Monitor layout is incomplete or centered insertion area is occupied')
+    print('PASS: relocated RX Monitor layout and vacated centered button area are supported.')
+elif len(re.findall(r'<div style="margin-top:8px;">', text, re.I)) == 1:
+    print('PASS: original RX Monitor button anchor is available.')
+else:
+    raise SystemExit('ERROR: supported RX Monitor button anchor or DVSwitch-Mods relocation was not found')
+PY_BUTTONS_CHECK
   echo "DVSwitch Mode Buttons $VERSION"
   echo "MMDVM_Bridge.ini: $INI"
   echo "Current DMR network: $default_net ($network)"
@@ -402,7 +445,7 @@ if [[ $mode == check ]]; then
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."

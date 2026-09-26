@@ -46,6 +46,11 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 - Friendly-name wrapping inside the DMR card.
 - Apache-readable DMR card state that remains writable only by root.
 
+The dashboard mode buttons work whether they are installed before or after the
+DVSwitch-Mods RX Monitor position modification. If RX Monitor has already moved
+to the left status column, the installer places the mode buttons in the vacated
+centered area and preserves the relocated RX Monitor control.
+
 The standalone DMR card is self-contained and does not require the `DVSwitch-Mods` repository.
 Its BM, TGIF, and STFU cards display the `Room` label above the current
 network/talkgroup name.
@@ -76,7 +81,7 @@ cd ~/DVSwitch-Mode-Buttons
 sudo ./dvswitch-mode-buttons.sh --check
 ```
 
-`--check` makes no changes and reports whether either network password in `var.txt` is missing or still the default. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache.
+`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, and reports whether either network password in `var.txt` is missing or still the default. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
 
 ## Uninstall
 
