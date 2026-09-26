@@ -82,7 +82,7 @@ cd ~/DVSwitch-Mode-Buttons
 sudo ./dvswitch-mode-buttons.sh --check
 ```
 
-`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, and reports whether either network password in `var.txt` is missing or still the default. The tuner submits only validated IDs, reads the active mode from the Mode Buttons state, and invokes a dedicated helper with no command-line arguments; the helper reads the ID from standard input and runs `dvswitch.sh tune`. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
+`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, and reports whether either network password in `var.txt` is missing or still the default. The tuner submits only validated IDs and invokes a dedicated helper with no command-line arguments; the helper reads the ID from standard input and runs `dvswitch.sh tune`. For D-Star, YSF, P25, and NXDN, the tune confirmation and target persistence use DVSwitch's live mode when available, avoiding stale mode state after terminal mode changes. DMR submodes continue to use the saved Mode Buttons state. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
 
 ## Uninstall
 

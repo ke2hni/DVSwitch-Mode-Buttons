@@ -21,7 +21,7 @@ chown root:root "$STATE_DIR"
 chmod 755 "$STATE_DIR"
 install -d -m 700 -o root -g root "$BACKUP_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
-if ! grep -qF "$MARKER" "$SCRIPT"; then
+if ! grep -qF 'mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode' "$SCRIPT"; then
   cp -a "$SCRIPT" "$BACKUP_DIR/dvswitch.sh.$stamp"
 fi
 cp -a "$MODE_HELPER" "$BACKUP_DIR/dvswitch-mode-buttons.$stamp" 2>/dev/null || true
@@ -48,6 +48,27 @@ block = '''    if [ "${#}" -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
         # DVSwitch-Mode-Buttons: per-mode target persistence v1
+        mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode 2>/dev/null | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+        case "$mode" in YSFN|YSFW) mode=YSF ;; esac
+        case "$mode" in DSTAR|YSF|P25|NXDN) ;; *)
+            if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
+                mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+            fi
+            ;;
+        esac
+        case "$mode" in
+            BM|TGIF|STFU|YSF|P25|NXDN|DSTAR)
+                /usr/local/sbin/dvswitch-mode-targets save "$mode" "$1" >/dev/null || true
+                ;;
+        esac
+    fi'''
+if b'mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode' in raw:
+    raise SystemExit(0)
+old_persisted = '''    if [ $# -eq 0 ]; then
+        getABInfoValue last_tune
+    else
+        remoteControlCommand "txTg=$1"
+        # DVSwitch-Mode-Buttons: per-mode target persistence v1
         if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
             mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
             case "$mode" in
@@ -57,17 +78,20 @@ block = '''    if [ "${#}" -eq 0 ]; then
             esac
         fi
     fi'''
-if marker.encode() in raw:
-    raise SystemExit(0)
 old = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
     else
         remoteControlCommand "txTg=$1"
     fi'''
-if text.count(old) != 1:
-    raise SystemExit(f'expected one original tune block; found {text.count(old)}')
 new = block.replace('    if [ "${#}" -eq 0 ]; then', '    if [ $# -eq 0 ]; then')
-text = text.replace(old, new, 1)
+if marker in text:
+    if text.count(old_persisted) != 1:
+        raise SystemExit('existing target-persistence block is unsupported; no files changed')
+    text = text.replace(old_persisted, new, 1)
+else:
+    if text.count(old) != 1:
+        raise SystemExit(f'expected one original tune block; found {text.count(old)}')
+    text = text.replace(old, new, 1)
 st = os.stat(path)
 fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
 try:

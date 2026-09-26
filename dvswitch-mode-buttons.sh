@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test12"
+VERSION="1.0.0-test13"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -101,7 +101,7 @@ FACTORY_OUTPUT = (
 )
 
 BRIDGE_MARKER = "# DVSwitch-Mode-Buttons: per-mode target persistence v1"
-BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
+BRIDGE_BLOCK_OLD = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
     else
         remoteControlCommand "txTg=$1"
@@ -115,13 +115,32 @@ BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
             esac
         fi
     fi'''
+BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
+        getABInfoValue last_tune
+    else
+        remoteControlCommand "txTg=$1"
+        # DVSwitch-Mode-Buttons: per-mode target persistence v1
+        mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode 2>/dev/null | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+        case "$mode" in YSFN|YSFW) mode=YSF ;; esac
+        case "$mode" in DSTAR|YSF|P25|NXDN) ;; *)
+            if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
+                mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+            fi
+            ;;
+        esac
+        case "$mode" in
+            BM|TGIF|STFU|YSF|P25|NXDN|DSTAR)
+                /usr/local/sbin/dvswitch-mode-targets save "$mode" "$1" >/dev/null || true
+                ;;
+        esac
+    fi'''
 BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test12 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -189,9 +208,13 @@ def patch_bridge(text: str) -> tuple[str, bool]:
     marker_count = text.count(BRIDGE_MARKER)
     if marker_count == 0:
         return text, False
-    if marker_count != 1 or text.count(BRIDGE_BLOCK) != 1:
+    if marker_count != 1:
         raise UnsafeStructure("dvswitch.sh target-persistence block is incomplete or ambiguous")
-    return text.replace(BRIDGE_BLOCK, BRIDGE_ORIGINAL, 1), True
+    if text.count(BRIDGE_BLOCK) == 1:
+        return text.replace(BRIDGE_BLOCK, BRIDGE_ORIGINAL, 1), True
+    if text.count(BRIDGE_BLOCK_OLD) == 1:
+        return text.replace(BRIDGE_BLOCK_OLD, BRIDGE_ORIGINAL, 1), True
+    raise UnsafeStructure("dvswitch.sh target-persistence block is incomplete or ambiguous")
 
 
 def patch_index(text: str) -> tuple[str, bool]:
@@ -314,6 +337,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['target'])) {
     }
     $modeFile = '/var/lib/dvswitch-mode-buttons/current-mode';
     $mode = is_readable($modeFile) ? strtoupper(trim((string)file_get_contents($modeFile))) : '';
+    $infoFiles = glob('/tmp/ABInfo_*.json');
+    if (is_array($infoFiles) && count($infoFiles) > 0) {
+        usort($infoFiles, static function ($a, $b) { return filemtime($b) <=> filemtime($a); });
+        $liveInfo = json_decode((string)file_get_contents($infoFiles[0]), true);
+        if (is_array($liveInfo)) foreach (array($liveInfo['tlv']['ambe_mode'] ?? '', $liveInfo['ambe_mode'] ?? '') as $liveValue) {
+            $liveValue = strtoupper(trim((string)$liveValue));
+            if ($liveValue === 'YSFN' || $liveValue === 'YSFW') $liveValue = 'YSF';
+            if (in_array($liveValue, array('YSF', 'P25', 'NXDN', 'DSTAR'), true)) { $mode = $liveValue; break; }
+        }
+    }
     if (!in_array($mode, $allowed, true)) {
         http_response_code(409); header('Content-Type: application/json');
         echo json_encode(array('ok' => false, 'error' => 'Current mode is unavailable. Select a mode with the dashboard buttons first.')); exit;
@@ -380,8 +413,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test12 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -391,7 +424,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test12 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <style>#dvs-mode-buttons{text-align:center;margin:4px auto 5px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}#dvs-target-tuner{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;min-height:34px}#dvs-target-input{box-sizing:border-box;width:min(320px,55vw);height:32px;padding:4px 8px}#dvs-target-submit{min-width:64px;height:32px;padding:4px 10px}#dvs-target-message{min-width:0;font-size:12px;text-align:left}#dvs-target-message.error{color:#d9534f}@media(max-width:600px){#dvs-target-tuner{gap:4px}#dvs-target-input{width:45vw}#dvs-target-message{max-width:28vw;overflow-wrap:anywhere}}</style>
@@ -416,7 +449,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test12 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -480,7 +513,7 @@ PY_BUTTONS_CHECK
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12) -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."
