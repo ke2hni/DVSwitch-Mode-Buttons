@@ -45,7 +45,7 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 - Standalone DMR Master card rendering for BM, TGIF, and STFU; while YSF, P25, NXDN, or D-Star is active, it retains the last DMR talkgroup instead of displaying that mode’s tune ID.
 - STFU friendly-name lookup using the BM talkgroup list.
 - Friendly-name wrapping inside the DMR card.
-- Apache-readable DMR card state that remains writable only by root.
+- A saved DMR talkgroup that the dashboard updates only while the live mode is DMR/STFU; non-DMR mode IDs never replace it.
 
 The dashboard mode buttons and inline talkgroup/reflector tuner work whether they are installed before or after the
 DVSwitch-Mods RX Monitor position modification. If RX Monitor has already moved
@@ -102,11 +102,11 @@ Uninstall removes both mode helpers, the target-state helper, tuner helper, endp
 /usr/local/sbin/dvswitch-mode-tune
 /usr/local/sbin/dvswitch-dmr-network -> /usr/local/sbin/dvswitch-mode-buttons (compatibility link)
 /var/lib/dvswitch-mode-buttons/
-/var/lib/dvswitch-mode-buttons/last-dmr-talkgroup (Apache-readable saved DMR target)
+/var/lib/dvswitch-mode-buttons/last-dmr-talkgroup (root-owned, Apache group-writable saved DMR target)
 /var/backups/dvswitch-mode-buttons/
 ```
 
-The BM/TGIF network-switch code now lives in the same installed mode helper; the old DMR helper path remains as a compatibility symlink. `dvswitch-mode-targets` remains a separate runtime command because the patched `dvswitch.sh tune` path invokes it directly to save and retrieve targets. The state directory is `755` so Apache can read the card state. State files are root-owned; `mode-targets.json` remains private at `600`.
+The BM/TGIF network-switch code now lives in the same installed mode helper; the old DMR helper path remains as a compatibility symlink. `dvswitch-mode-targets` remains a separate runtime command because the patched `dvswitch.sh tune` path invokes it directly to save and retrieve targets. The state directory is `755` so Apache can read the card state. The saved DMR target is owned by `root:www-data` with mode `664`, allowing the status page to retain the live DMR talkgroup when the active mode changes. `mode-targets.json` remains private at `600`.
 
 ## Safety boundaries
 
