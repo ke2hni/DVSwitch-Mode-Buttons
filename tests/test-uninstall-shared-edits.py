@@ -43,7 +43,7 @@ def status_fixture(with_mods: bool = True) -> str:
         mods = php_function("dvsModsDmrMasterHeading") + php_function("dvsModsDmrMasterDisplay")
     return (
         "<?php\ninclude_once dirname(dirname(__FILE__)).'/include/functions.php';\n"
-        + PATCH.STATUS_MARKER.pattern.replace("^", "").replace("$", "").replace("[1-6]", "6")
+        + "// DVSwitch-Mode-Buttons: standalone DMR Master display v7\n"
         + "\n"
         + helper
         + "// DVSwitch-Mods: P25/NXDN friendly names remain present\n"
@@ -52,6 +52,11 @@ def status_fixture(with_mods: bool = True) -> str:
         + PATCH.BUTTONS_HEADING
         + "\n"
         + PATCH.BUTTONS_OUTPUT
+        + "\n"
+        + PATCH.BUTTONS_CONNECTING_CONDITION
+        + " {\n"
+        + PATCH.BUTTONS_CONNECTING_OUTPUT
+        + "\n}\n"
     )
 
 
@@ -72,8 +77,11 @@ class SharedFileUninstallTests(unittest.TestCase):
         cleaned, changed = PATCH.patch_status(original)
 
         self.assertTrue(changed)
-        self.assertNotIn("standalone DMR Master display v6", cleaned)
+        self.assertNotIn("standalone DMR Master display v7", cleaned)
         self.assertNotIn("dvsButtonsDmrMasterHeading(", cleaned)
+        self.assertNotIn("dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo, true)", cleaned)
+        self.assertIn(PATCH.NOT_CONNECTED_ROW, cleaned)
+        self.assertIn(PATCH.LEGACY_CONNECTING_CONDITION, cleaned)
         self.assertIn("DVSwitch-Mods: P25/NXDN friendly names remain present", cleaned)
         self.assertIn("function dvsModsDmrMasterHeading(", cleaned)
         self.assertIn("function dvsModsDmrMasterDisplay(", cleaned)

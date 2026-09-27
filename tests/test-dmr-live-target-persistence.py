@@ -43,6 +43,7 @@ def main() -> None:
     old_display = literal_assignment(tree, "old_v6_display")
     themed_master = literal_assignment(tree, "themed_master")
     themed_display = literal_assignment(tree, "themed_display")
+    not_connected_row = literal_assignment(tree, "not_connected_row")
     helpers = (
         "dvsButtonsDmrNetwork", "dvsButtonsDmrTalkgroup", "dvsButtonsDmrName",
         "dvsButtonsDmrSavedCardMode", "dvsButtonsDmrSavedNetwork",
@@ -55,6 +56,9 @@ def main() -> None:
     fixture += old_display + "\n"
     fixture += f"        if ($talkgroup === '') {{ return {themed_master} }}\n"
     fixture += f"        return {themed_display}\n}}\n?>\n"
+    fixture += "if (strpos($dmrstat, 'Logged') !== false) { echo 'logged'; }\n"
+    fixture += "else if (strpos($dmrstat, 'Opening') !== false || strpos($dmrstatus, 'Closing') !== false || strpos($dmrstatus, 'Connection') !== false) {\n"
+    fixture += "    " + not_connected_row + "\n}\n"
 
     with tempfile.TemporaryDirectory() as directory:
         candidate = Path(directory) / "status.php"
@@ -64,12 +68,17 @@ def main() -> None:
         subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)
         upgraded = candidate.read_text()
         assert "function dvsButtonsDmrRememberTalkgroup(" in upgraded
-        assert "if ($isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }" in upgraded
+        assert "if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }" in upgraded
         assert "$talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();" in upgraded
+        assert "standalone DMR Master display v7" in upgraded
+        assert "dvs-dmr-connection-state" in upgraded
+        assert "dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo, true)" in upgraded
+        assert "strpos($dmrstatus" not in upgraded
+        assert ">Not Connected</span>" not in upgraded
         subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)
         assert candidate.read_text() == upgraded, "v6-to-current DMR card upgrade is not idempotent"
 
-    print("PASS: installed v6 DMR card gains live DMR target persistence idempotently")
+    print("PASS: v6 DMR card upgrades to a connecting TG display, fixes status typo, and stays idempotent")
 
 
 if __name__ == "__main__":
