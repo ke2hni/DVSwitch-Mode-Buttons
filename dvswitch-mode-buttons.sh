@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test16"
+VERSION="1.0.0-test17"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -195,8 +195,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test16 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test17 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -484,7 +484,7 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test16 -->'
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test17 -->'
 owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
@@ -495,7 +495,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test16 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test17 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <style>#dvs-mode-buttons{text-align:center;margin:4px auto 5px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}#dvs-target-tuner{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;min-height:34px}#dvs-target-input{box-sizing:border-box;width:min(320px,55vw);height:32px;padding:4px 8px}#dvs-target-submit{min-width:64px;height:32px;padding:4px 10px}#dvs-target-message{min-width:0;font-size:12px;text-align:left}#dvs-target-message.error{color:#d9534f}@media(max-width:600px){#dvs-target-tuner{gap:4px}#dvs-target-input{width:45vw}#dvs-target-message{max-width:28vw;overflow-wrap:anywhere}}</style>
@@ -520,7 +520,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test16 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test17 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -848,9 +848,28 @@ old_v6_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
                 if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
         }
         $talkgroup = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true) ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();'''
+old_v6_persistent_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
+        $liveMode = dvsButtonsDmrCurrentMode($abinfo);
+        if ($liveMode === 'DMR') {
+                $network = dvsButtonsDmrNetwork($master);
+        } elseif ($liveMode === 'BM' || $liveMode === 'TGIF') {
+                $network = $liveMode;
+        } elseif ($liveMode === 'STFU') {
+                $network = 'BM';
+        } else {
+                $saved = dvsButtonsDmrSavedCardMode();
+                $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
+                if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
+        }
+        $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);
+        $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
+        if ($isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }'''
 if not display_changed:
     if text.count(old_v6_display) == 1:
         text=text.replace(old_v6_display,new_display,1)
+        display_changed = True
+    elif text.count(old_v6_persistent_display) == 1:
+        text=text.replace(old_v6_persistent_display,new_display,1)
         display_changed = True
     elif text.count(new_display) == 1:
         display_changed = True

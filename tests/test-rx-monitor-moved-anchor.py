@@ -67,7 +67,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             result = run_patcher(target)
             self.assertEqual(result.returncode, 0, result.stderr)
             installed = target.read_text()
-        self.assertIn("<!-- DVSwitch-Mode-Buttons 1.0.0-test16 -->", installed)
+        self.assertIn("<!-- DVSwitch-Mode-Buttons 1.0.0-test17 -->", installed)
         self.assertLess(installed.index("dvs-mode-buttons"), installed.index('<div style="margin-top:8px;">'))
 
     def test_check_accepts_both_supported_layouts(self) -> None:
@@ -129,7 +129,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             second = run_patcher(target)
             self.assertEqual(second.returncode, 0, second.stderr)
             installed = target.read_text()
-        self.assertEqual(installed.count("<!-- DVSwitch-Mode-Buttons 1.0.0-test16 -->"), 1)
+        self.assertEqual(installed.count("<!-- DVSwitch-Mode-Buttons 1.0.0-test17 -->"), 1)
         self.assertEqual(installed.count("// DVSwitch-Mods: RX Monitor left of status v1"), 1)
         self.assertLess(installed.index("dvs-mode-buttons"), installed.index("</center>"))
         self.assertIn("playAudioToggle(8080, this)", installed)
@@ -163,7 +163,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             installed = target.read_text()
         self.assertNotIn("1.0.0-test8", installed)
-        self.assertEqual(installed.count("1.0.0-test16"), 1)
+        self.assertEqual(installed.count("1.0.0-test17"), 1)
         self.assertNotIn("old-buttons", installed)
 
 
