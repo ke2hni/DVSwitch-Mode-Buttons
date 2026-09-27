@@ -21,7 +21,7 @@ chown root:root "$STATE_DIR"
 chmod 755 "$STATE_DIR"
 install -d -m 700 -o root -g root "$BACKUP_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
-if ! grep -qF 'mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode' "$SCRIPT"; then
+if ! grep -qF 'ABINFO_MODE_PY' "$SCRIPT"; then
   cp -a "$SCRIPT" "$BACKUP_DIR/dvswitch.sh.$stamp"
 fi
 cp -a "$MODE_HELPER" "$BACKUP_DIR/dvswitch-mode-buttons.$stamp" 2>/dev/null || true
@@ -48,13 +48,32 @@ block = '''    if [ "${#}" -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
         # DVSwitch-Mode-Buttons: per-mode target persistence v1
-        mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode 2>/dev/null | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
-        case "$mode" in YSFN|YSFW) mode=YSF ;; esac
-        case "$mode" in DSTAR|YSF|P25|NXDN) ;; *)
-            if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
-                mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
-            fi
-            ;;
+        mode=$(python3 - <<'ABINFO_MODE_PY'
+import glob, json, os
+files = glob.glob('/tmp/ABInfo_*.json')
+files.sort(key=os.path.getmtime, reverse=True)
+if files:
+    try:
+        with open(files[0], encoding='utf-8') as stream:
+            data = json.load(stream)
+        for value in (data.get('tlv', {}).get('ambe_mode', ''), data.get('ambe_mode', '')):
+            value = str(value).strip().upper()
+            if value in ('YSFN', 'YSFW'):
+                value = 'YSF'
+            if value in ('DSTAR', 'YSF', 'P25', 'NXDN'):
+                print(value)
+                break
+    except (OSError, ValueError, TypeError):
+        pass
+ABINFO_MODE_PY
+        )
+        case "$mode" in
+            DSTAR|YSF|P25|NXDN) ;;
+            *)
+                if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
+                    mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+                fi
+                ;;
         esac
         case "$mode" in
             BM|TGIF|STFU|YSF|P25|NXDN|DSTAR)
@@ -62,7 +81,7 @@ block = '''    if [ "${#}" -eq 0 ]; then
                 ;;
         esac
     fi'''
-if b'mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode' in raw:
+if b'ABINFO_MODE_PY' in raw:
     raise SystemExit(0)
 old_persisted = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
@@ -78,6 +97,25 @@ old_persisted = '''    if [ $# -eq 0 ]; then
             esac
         fi
     fi'''
+old_test13 = '''    if [ $# -eq 0 ]; then
+        getABInfoValue last_tune
+    else
+        remoteControlCommand "txTg=$1"
+        # DVSwitch-Mode-Buttons: per-mode target persistence v1
+        mode=$(/opt/MMDVM_Bridge/dvswitch.sh mode 2>/dev/null | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+        case "$mode" in YSFN|YSFW) mode=YSF ;; esac
+        case "$mode" in DSTAR|YSF|P25|NXDN) ;; *)
+            if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
+                mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+            fi
+            ;;
+        esac
+        case "$mode" in
+            BM|TGIF|STFU|YSF|P25|NXDN|DSTAR)
+                /usr/local/sbin/dvswitch-mode-targets save "$mode" "$1" >/dev/null || true
+                ;;
+        esac
+    fi'''
 old = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
     else
@@ -85,9 +123,12 @@ old = '''    if [ $# -eq 0 ]; then
     fi'''
 new = block.replace('    if [ "${#}" -eq 0 ]; then', '    if [ $# -eq 0 ]; then')
 if marker in text:
-    if text.count(old_persisted) != 1:
+    if text.count(old_test13) == 1:
+        text = text.replace(old_test13, new, 1)
+    elif text.count(old_persisted) == 1:
+        text = text.replace(old_persisted, new, 1)
+    else:
         raise SystemExit('existing target-persistence block is unsupported; no files changed')
-    text = text.replace(old_persisted, new, 1)
 else:
     if text.count(old) != 1:
         raise SystemExit(f'expected one original tune block; found {text.count(old)}')

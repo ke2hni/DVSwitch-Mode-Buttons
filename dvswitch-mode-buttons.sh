@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test13"
+VERSION="1.0.0-test14"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -115,7 +115,7 @@ BRIDGE_BLOCK_OLD = '''    if [ $# -eq 0 ]; then
             esac
         fi
     fi'''
-BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
+BRIDGE_BLOCK_TEST13 = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
     else
         remoteControlCommand "txTg=$1"
@@ -134,13 +134,51 @@ BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
                 ;;
         esac
     fi'''
+BRIDGE_BLOCK = '''    if [ $# -eq 0 ]; then
+        getABInfoValue last_tune
+    else
+        remoteControlCommand "txTg=$1"
+        # DVSwitch-Mode-Buttons: per-mode target persistence v1
+        mode=$(python3 - <<'ABINFO_MODE_PY'
+import glob, json, os
+files = glob.glob('/tmp/ABInfo_*.json')
+files.sort(key=os.path.getmtime, reverse=True)
+if files:
+    try:
+        with open(files[0], encoding='utf-8') as stream:
+            data = json.load(stream)
+        for value in (data.get('tlv', {}).get('ambe_mode', ''), data.get('ambe_mode', '')):
+            value = str(value).strip().upper()
+            if value in ('YSFN', 'YSFW'):
+                value = 'YSF'
+            if value in ('DSTAR', 'YSF', 'P25', 'NXDN'):
+                print(value)
+                break
+    except (OSError, ValueError, TypeError):
+        pass
+ABINFO_MODE_PY
+        )
+        case "$mode" in
+            DSTAR|YSF|P25|NXDN) ;;
+            *)
+                if [ -r /var/lib/dvswitch-mode-buttons/current-mode ]; then
+                    mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+                fi
+                ;;
+        esac
+        case "$mode" in
+            BM|TGIF|STFU|YSF|P25|NXDN|DSTAR)
+                /usr/local/sbin/dvswitch-mode-targets save "$mode" "$1" >/dev/null || true
+                ;;
+        esac
+    fi'''
 BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
         getABInfoValue last_tune
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -212,6 +250,8 @@ def patch_bridge(text: str) -> tuple[str, bool]:
         raise UnsafeStructure("dvswitch.sh target-persistence block is incomplete or ambiguous")
     if text.count(BRIDGE_BLOCK) == 1:
         return text.replace(BRIDGE_BLOCK, BRIDGE_ORIGINAL, 1), True
+    if text.count(BRIDGE_BLOCK_TEST13) == 1:
+        return text.replace(BRIDGE_BLOCK_TEST13, BRIDGE_ORIGINAL, 1), True
     if text.count(BRIDGE_BLOCK_OLD) == 1:
         return text.replace(BRIDGE_BLOCK_OLD, BRIDGE_ORIGINAL, 1), True
     raise UnsafeStructure("dvswitch.sh target-persistence block is incomplete or ambiguous")
@@ -413,8 +453,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -424,7 +464,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <style>#dvs-mode-buttons{text-align:center;margin:4px auto 5px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}#dvs-target-tuner{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;min-height:34px}#dvs-target-input{box-sizing:border-box;width:min(320px,55vw);height:32px;padding:4px 8px}#dvs-target-submit{min-width:64px;height:32px;padding:4px 10px}#dvs-target-message{min-width:0;font-size:12px;text-align:left}#dvs-target-message.error{color:#d9534f}@media(max-width:600px){#dvs-target-tuner{gap:4px}#dvs-target-input{width:45vw}#dvs-target-message{max-width:28vw;overflow-wrap:anywhere}}</style>
@@ -449,7 +489,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test13 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -513,7 +553,7 @@ PY_BUTTONS_CHECK
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13) -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."

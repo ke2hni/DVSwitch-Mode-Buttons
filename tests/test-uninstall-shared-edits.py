@@ -98,6 +98,16 @@ class SharedFileUninstallTests(unittest.TestCase):
             "# DVSwitch-Mods: updater remains\n" + PATCH.BRIDGE_ORIGINAL + "\n# local customization\n",
         )
 
+    def test_removes_test13_bridge_block_during_upgrade_or_uninstall(self) -> None:
+        bridge = "# DVSwitch-Mods: updater remains\n" + PATCH.BRIDGE_BLOCK_TEST13 + "\n# local customization\n"
+        cleaned, changed = PATCH.patch_bridge(bridge)
+
+        self.assertTrue(changed)
+        self.assertEqual(
+            cleaned,
+            "# DVSwitch-Mods: updater remains\n" + PATCH.BRIDGE_ORIGINAL + "\n# local customization\n",
+        )
+
     def test_removes_only_the_mode_button_index_script(self) -> None:
         index = (
             "<html><body>keep this<!-- DVSwitch-Mode-Buttons 1.0.0-test8 -->"
