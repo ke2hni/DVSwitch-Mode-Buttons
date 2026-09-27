@@ -67,7 +67,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             result = run_patcher(target)
             self.assertEqual(result.returncode, 0, result.stderr)
             installed = target.read_text()
-        self.assertIn("<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->", installed)
+        self.assertIn("<!-- DVSwitch-Mode-Buttons 1.0.0-test15 -->", installed)
         self.assertLess(installed.index("dvs-mode-buttons"), installed.index('<div style="margin-top:8px;">'))
 
     def test_check_accepts_both_supported_layouts(self) -> None:
@@ -84,6 +84,24 @@ class RxMonitorAnchorTests(unittest.TestCase):
                 target.write_text(source)
                 result = run_checker(target)
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_check_accepts_installed_test14_controls_in_moved_layout(self) -> None:
+        source = (
+            '<div class="content"><center>\n'
+            '<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->\n'
+            '<div id="dvs-mode-buttons">installed controls</div>\n'
+            '<script>installed()</script>\n'
+            '</center></div>\n'
+            '// DVSwitch-Mods: RX Monitor left of status v1\n'
+            'echo \'<div style="margin-top:8px;text-align:center;">\';\n'
+            'if ( RXMONITOR == "YES" ) {\n' + RX_BUTTON + '\n'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "index.php"
+            target.write_text(source)
+            result = run_checker(target)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS: relocated RX Monitor layout", result.stdout)
 
     def test_check_rejects_unknown_layout_without_changes(self) -> None:
         source = '<div class="content"><center>custom layout</center></div>\n'
@@ -111,7 +129,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             second = run_patcher(target)
             self.assertEqual(second.returncode, 0, second.stderr)
             installed = target.read_text()
-        self.assertEqual(installed.count("<!-- DVSwitch-Mode-Buttons 1.0.0-test14 -->"), 1)
+        self.assertEqual(installed.count("<!-- DVSwitch-Mode-Buttons 1.0.0-test15 -->"), 1)
         self.assertEqual(installed.count("// DVSwitch-Mods: RX Monitor left of status v1"), 1)
         self.assertLess(installed.index("dvs-mode-buttons"), installed.index("</center>"))
         self.assertIn("playAudioToggle(8080, this)", installed)
@@ -145,7 +163,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             installed = target.read_text()
         self.assertNotIn("1.0.0-test8", installed)
-        self.assertEqual(installed.count("1.0.0-test14"), 1)
+        self.assertEqual(installed.count("1.0.0-test15"), 1)
         self.assertNotIn("old-buttons", installed)
 
 
