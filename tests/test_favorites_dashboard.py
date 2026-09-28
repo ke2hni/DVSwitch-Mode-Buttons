@@ -27,11 +27,37 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('os.replace(temporary, PATH)', HELPER)
         self.assertIn('len(items) > 30', HELPER)
 
-    def test_test18_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test18"', INSTALLER)
-        self.assertIn('|17|18', INSTALLER)
+    def test_test19_upgrade_and_uninstall_cover_the_favorites_script(self):
+        self.assertIn('VERSION="1.0.0-test19"', INSTALLER)
+        self.assertIn('|17|18|19', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
+        self.assertIn('id="dvs-target-tuner"', INSTALLER)
+        self.assertIn('id="dvs-favorites"', INSTALLER)
+
+    def test_test18_upgrade_restores_static_tune_and_favorites_markup(self):
+        source = (
+            '<div class="content"><center>\n'
+            '<!-- DVSwitch-Mode-Buttons 1.0.0-test18 -->\n'
+            '<div id="dvs-mode-buttons">old controls</div>\n'
+            '<script src="/dvswitch/dvswitch-mode-favorites.js"></script>\n'
+            '</center><div style="margin-top:8px;">RX Monitor</div></div>\n'
+        )
+        import tempfile
+        import subprocess
+        import re
+        installer = (ROOT / 'dvswitch-mode-buttons.sh').read_text()
+        patcher = re.search(r"python3 - \"\$TARGET\" <<'PY'\n(.*?)^PY$", installer, re.M | re.S)
+        self.assertIsNotNone(patcher)
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'index.php'
+            target.write_text(source)
+            result = subprocess.run(['python3', '-c', patcher.group(1), str(target)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            installed = target.read_text()
+        self.assertIn('id="dvs-target-tuner"', installed)
+        self.assertIn('id="dvs-favorites"', installed)
+        self.assertEqual(installed.count('id="dvs-target-tuner"'), 1)
 
 
 if __name__ == '__main__':

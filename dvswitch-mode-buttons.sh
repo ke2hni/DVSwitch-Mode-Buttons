@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test18"
+VERSION="1.0.0-test19"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -202,8 +202,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test18 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test19 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -518,8 +518,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test18 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test19 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -529,9 +529,11 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test18 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test19 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
+<form id="dvs-target-tuner" aria-label="Tune talkgroup or reflector"><input id="dvs-target-input" name="target" type="text" inputmode="numeric" maxlength="32" autocomplete="off" placeholder="Enter TG / reflector ID" aria-label="Talkgroup or reflector ID"><button id="dvs-target-submit" type="submit" class="button link">Tune</button><span id="dvs-target-message" role="status" aria-live="polite"></span></form>
+<section id="dvs-favorites" hidden aria-label="Mode favorites"><div class="dvs-favorites-heading">Favorites <button type="button" class="button link dvs-favorites-edit">Edit</button></div><div class="dvs-favorites-list"></div><div class="dvs-favorites-status" role="status" aria-live="polite"></div><div class="dvs-favorites-editor" hidden><label>Mode <select class="dvs-favorites-mode"></select></label><div class="dvs-favorites-rows"></div><button type="button" class="button link dvs-favorites-add">Add Favorite</button><button type="button" class="button link dvs-favorites-save">Save</button><button type="button" class="button link dvs-favorites-cancel">Cancel</button></div></section>
 <style>#dvs-mode-buttons{text-align:center;margin:4px auto 5px}#dvs-mode-buttons .dvs-mode-buttons-title{font-weight:bold;margin-bottom:2px}#dvs-mode-buttons button{min-width:72px;height:32px;padding:4px 10px}#dvs-mode-buttons button.selected{background-color:#008000}#dvs-mode-buttons button:disabled{opacity:.65}#dvs-target-tuner{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;min-height:34px}#dvs-target-input{box-sizing:border-box;width:min(320px,55vw);height:32px;padding:4px 8px}#dvs-target-submit{min-width:64px;height:32px;padding:4px 10px}#dvs-target-message{min-width:0;font-size:12px;text-align:left}#dvs-target-message.error{color:#d9534f}@media(max-width:600px){#dvs-target-tuner{gap:4px}#dvs-target-input{width:45vw}#dvs-target-message{max-width:28vw;overflow-wrap:anywhere}}#dvs-favorites{text-align:center;margin:0 auto 8px;max-width:720px}#dvs-favorites .dvs-favorites-heading{font-weight:bold;margin-bottom:3px}#dvs-favorites .dvs-favorite{margin:2px;min-height:30px}#dvs-favorites .dvs-favorites-editor{margin:6px auto;padding:6px;border:1px solid #aaa;max-width:600px}#dvs-favorites-mode{margin-left:5px;padding:4px}.dvs-favorite-edit-row{display:flex;gap:5px;justify-content:center;margin:4px}.dvs-favorite-edit-row input{box-sizing:border-box;width:min(220px,34vw);min-width:0;padding:4px}.dvs-favorites-status{font-size:12px;min-height:1em}@media(max-width:600px){.dvs-favorite-edit-row input{width:38vw}.dvs-favorite-edit-row{gap:3px}}</style>
 <script src="/dvswitch/dvswitch-mode-favorites.js"></script>'''
     rx_move_marker='// DVSwitch-Mods: RX Monitor left of status v1'
@@ -554,7 +556,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test18 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test19 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -582,7 +584,7 @@ import re, sys
 from pathlib import Path
 path = Path(sys.argv[1])
 text = path.read_text(encoding='utf-8')
-button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18) -->', text))
+button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19) -->', text))
 if len(button_markers) > 1:
     raise SystemExit('ERROR: duplicate Mode Buttons blocks found')
 if button_markers:
@@ -645,7 +647,7 @@ PY_DMR_CARD_CHECK
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$FAVORITES_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14|15|16|17|18) -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$FAVORITES_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14|15|16|17|18|19) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."
