@@ -27,13 +27,15 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('os.replace(temporary, PATH)', HELPER)
         self.assertIn('len(items) > 30', HELPER)
 
-    def test_test19_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test19"', INSTALLER)
-        self.assertIn('|17|18|19', INSTALLER)
+    def test_test20_upgrade_and_uninstall_cover_the_favorites_script(self):
+        self.assertIn('VERSION="1.0.0-test20"', INSTALLER)
+        self.assertIn('|17|18|19|20', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
         self.assertIn('id="dvs-target-tuner"', INSTALLER)
         self.assertIn('id="dvs-favorites"', INSTALLER)
+        self.assertIn('class="dvs-favorites-control-line"><div class="dvs-favorites-heading"', INSTALLER)
+        self.assertIn('</form></div>\n<div class="dvs-favorites-list">', INSTALLER)
 
     def test_test18_upgrade_restores_static_tune_and_favorites_markup(self):
         source = (
