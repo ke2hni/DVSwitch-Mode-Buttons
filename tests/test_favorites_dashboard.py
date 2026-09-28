@@ -35,9 +35,10 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
         self.assertIn('id="dvs-target-tuner"', INSTALLER)
         self.assertIn('id="dvs-favorites"', INSTALLER)
-        self.assertIn('class="dvs-favorites-control-line"><div class="dvs-favorites-heading"', INSTALLER)
+        self.assertIn('class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div><label', INSTALLER)
         self.assertIn('id="dvs-favorites-select" class="dvs-favorites-select"', INSTALLER)
-        self.assertIn('</form><label class="dvs-favorites-select-label"', INSTALLER)
+        self.assertIn('</select><button type="button" class="button link dvs-favorites-edit"', INSTALLER)
+        self.assertIn('</button>\n<form id="dvs-target-tuner"', INSTALLER)
         self.assertIn('display:inline-flex;vertical-align:middle', INSTALLER)
 
     def test_test18_upgrade_restores_static_tune_and_favorites_markup(self):
