@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test23"
+VERSION="1.0.0-test24"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -15,6 +15,7 @@ TUNE_HELPER="/usr/local/sbin/dvswitch-mode-tune"
 FAVORITES_HELPER="/usr/local/sbin/dvswitch-mode-favorites"
 FAVORITES_JS="/usr/share/dvswitch/dvswitch-mode-favorites.js"
 SUDOERS="/etc/sudoers.d/dvswitch-mode-buttons"
+LAYOUT_STATE="/var/lib/dvswitch-mode-buttons/display-layout-owned.json"
 PRESET_DIR="/etc/dvswitch-mode-buttons/dmr-presets"
 LEGACY_PRESET_DIR="/etc/dvswitch-mode-buttons"
 
@@ -29,9 +30,12 @@ die(){ echo "ERROR: $*" >&2; exit 1; }
 [[ -f ./dvswitch-mode-favorites.js ]] || die 'missing dashboard favorites source'
 [[ -f ./install-mode-target-persistence.sh ]] || die 'missing target-persistence installer'
 [[ -f ./install-standalone-dmr-master-card.sh ]] || die 'missing standalone DMR-card installer'
+[[ -f ./dvswitch-display-layout.sh ]] || die 'missing bundled display-layout installer'
+[[ -f ./dvswitch-mode-layout-state ]] || die 'missing display-layout ownership helper'
 grep -q '^switch_dmr_network(){' ./dvswitch-mode-buttons || die 'unified DMR switch function is missing'
-bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./dvswitch-mode-tune ./install-mode-target-persistence.sh ./install-standalone-dmr-master-card.sh || die 'installer source syntax validation failed'
+bash -n ./dvswitch-mode-buttons ./dvswitch-mode-targets ./dvswitch-mode-tune ./install-mode-target-persistence.sh ./install-standalone-dmr-master-card.sh ./dvswitch-display-layout.sh || die 'installer source syntax validation failed'
 python3 -c 'from pathlib import Path; compile(Path("dvswitch-mode-favorites").read_text(), "dvswitch-mode-favorites", "exec")' || die 'favorites helper syntax validation failed'
+python3 -c 'from pathlib import Path; compile(Path("dvswitch-mode-layout-state").read_text(), "dvswitch-mode-layout-state", "exec")' || die 'display-layout ownership helper syntax validation failed'
 
 BACKUP_DIR=/var/backups/dvswitch-mode-buttons
 backup(){
@@ -58,9 +62,11 @@ uninstall(){
   backup "$TUNE_HELPER"
   backup "$FAVORITES_HELPER"
   backup "$STATUS_TARGET"
+  backup "$LAYOUT_STATE"
   backup /opt/MMDVM_Bridge/dvswitch.sh
   backup /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup
   backup "$DMR_HELPER"
+  ./dvswitch-mode-layout-state check-restore "$LAYOUT_STATE"
   python3 - "$STATUS_TARGET" /opt/MMDVM_Bridge/dvswitch.sh "$TARGET" <<'PY_BUTTONS_UNINSTALL' || die 'uninstall structure was unsupported; installed controls and helpers were left in place'
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
@@ -202,8 +208,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test23 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test24 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -367,6 +373,7 @@ if __name__ == "__main__":
         raise SystemExit(f"ERROR: {error}; shared files were left unchanged")
 PY_BUTTONS_UNINSTALL
   rm -f "$MODE_HELPER" "$DMR_HELPER" "$TARGET_HELPER" "$TUNE_HELPER" "$FAVORITES_HELPER" "$FAVORITES_JS" "$ENDPOINT" "$SUDOERS" "$DMR_HELPER".tmp.*
+  ./dvswitch-mode-layout-state restore "$LAYOUT_STATE"
   rm -rf "$PRESET_DIR" /var/lib/dvswitch-mode-buttons
   # Restore an older standalone helper when one was present before consolidation.
   [[ -z "$latest_dmr_helper" ]] || cp -a "$latest_dmr_helper" "$DMR_HELPER"
@@ -518,8 +525,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test23 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test24 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -529,7 +536,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test23 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test24 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <section id="dvs-favorites" hidden aria-label="Mode favorites"><div class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div><label class="dvs-favorites-select-label" for="dvs-favorites-select" hidden>Favorite</label><select id="dvs-favorites-select" class="dvs-favorites-select" aria-label="Active mode favorite"><option value="">Select favorite</option></select><button type="button" class="button link dvs-favorites-edit">Edit</button>
@@ -557,7 +564,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test23 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test24 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -580,12 +587,13 @@ password_state(){
 }
 
 if [[ $mode == check ]]; then
+  ./dvswitch-display-layout.sh check
   python3 - "$TARGET" <<'PY_BUTTONS_CHECK'
 import re, sys
 from pathlib import Path
 path = Path(sys.argv[1])
 text = path.read_text(encoding='utf-8')
-button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21) -->', text))
+button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24) -->', text))
 if len(button_markers) > 1:
     raise SystemExit('ERROR: duplicate Mode Buttons blocks found')
 if button_markers:
@@ -648,7 +656,7 @@ PY_DMR_CARD_CHECK
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$FAVORITES_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14|15|16|17|18|19|20|21) -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$FAVORITES_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."
@@ -732,6 +740,8 @@ PY
 chmod 700 "$PRESET_DIR"; chown -R root:root "$PRESET_DIR"
 echo "PASS: created available BM/TGIF presets in $PRESET_DIR."
 
+./dvswitch-mode-layout-state capture "$LAYOUT_STATE"
+./dvswitch-display-layout.sh apply
 install_dashboard_components
 
 ./install-mode-target-persistence.sh

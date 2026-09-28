@@ -174,6 +174,16 @@ show_status(){
 }
 
 case "${1:-menu}" in
+  check)
+    need_root
+    require_file "$INDEX_FILE"
+    require_file "$CSS_FILE"
+    require_file "$LH_FILE"
+    require_file "$LOCALTX_FILE"
+    require_file "$SYSTEM_FILE"
+    [ ! -L "$INDEX_FILE" ] && [ ! -L "$CSS_FILE" ] && [ ! -L "$LH_FILE" ] && [ ! -L "$LOCALTX_FILE" ] && [ ! -L "$SYSTEM_FILE" ] || die "Refusing symlink dashboard target."
+    printf '%s\n' "PASS: all five dashboard files required by the display-layout mod are present."
+    ;;
   apply)
     apply_responsive
     ;;
