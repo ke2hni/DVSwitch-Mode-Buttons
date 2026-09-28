@@ -10,7 +10,7 @@
     const tuneStatus = document.getElementById('dvs-target-message');
     if (!root || !tuner || !input) return;
 
-    const list = root.querySelector('.dvs-favorites-list');
+    const favoriteSelect = root.querySelector('.dvs-favorites-select');
     const status = root.querySelector('.dvs-favorites-status');
     const editButton = root.querySelector('.dvs-favorites-edit');
     const editor = root.querySelector('.dvs-favorites-editor');
@@ -42,27 +42,29 @@
     }
 
     async function showFavorites() {
-      list.replaceChildren();
+      favoriteSelect.replaceChildren(new Option('Select favorite', ''));
       status.textContent = '';
       if (!validMode(activeMode)) return;
       try {
         const favorites = await load(activeMode);
         favorites.forEach(function (favorite) {
           if (!favorite || typeof favorite.name !== 'string' || typeof favorite.target !== 'string') return;
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'button link dvs-favorite';
-          button.textContent = favorite.name + ' (' + favorite.target + ')';
-          button.addEventListener('click', function () {
-            input.value = favorite.target;
-            tuner.requestSubmit();
-          });
-          list.appendChild(button);
+          const option = document.createElement('option');
+          option.value = favorite.target;
+          option.textContent = favorite.name + ' (' + favorite.target + ')';
+          favoriteSelect.appendChild(option);
         });
       } catch (error) {
         status.textContent = error.message;
       }
     }
+
+    favoriteSelect.addEventListener('change', function () {
+      if (!favoriteSelect.value) return;
+      input.value = favoriteSelect.value;
+      tuner.requestSubmit();
+      favoriteSelect.value = '';
+    });
 
     function makeRow(favorite) {
       const row = document.createElement('div');
@@ -94,14 +96,12 @@
     function enterEdit() {
       selector.value = validMode(activeMode) ? activeMode : 'BM';
       editor.hidden = false;
-      list.hidden = true;
       editButton.textContent = 'Close Edit';
       loadEditorMode();
     }
 
     function closeEdit() {
       editor.hidden = true;
-      list.hidden = false;
       editButton.textContent = 'Edit';
       showFavorites();
     }
