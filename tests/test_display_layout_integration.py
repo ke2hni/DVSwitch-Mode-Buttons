@@ -21,11 +21,11 @@ SPEC.loader.exec_module(STATE)
 
 class DisplayLayoutTests(unittest.TestCase):
     def test_installer_checks_applies_and_restores_bundled_layout(self):
-        self.assertIn('dvswitch-display-layout.sh check', INSTALLER)
-        self.assertIn('dvswitch-mode-layout-state capture "$LAYOUT_STATE"', INSTALLER)
-        self.assertIn('dvswitch-display-layout.sh apply', INSTALLER)
-        self.assertIn('dvswitch-mode-layout-state check-restore "$LAYOUT_STATE"', INSTALLER)
-        self.assertIn('dvswitch-mode-layout-state restore "$LAYOUT_STATE"', INSTALLER)
+        self.assertIn('bash ./dvswitch-display-layout.sh check', INSTALLER)
+        self.assertIn('python3 ./dvswitch-mode-layout-state capture "$LAYOUT_STATE"', INSTALLER)
+        self.assertIn('bash ./dvswitch-display-layout.sh apply', INSTALLER)
+        self.assertIn('python3 ./dvswitch-mode-layout-state check-restore "$LAYOUT_STATE"', INSTALLER)
+        self.assertIn('python3 ./dvswitch-mode-layout-state restore "$LAYOUT_STATE"', INSTALLER)
         self.assertIn('check)', LAYOUT)
         for source, old, new in (
             ('$INDEX_FILE', '<td valign="top" style="border:none; height: 480px; background-color:#fafafa;">', '<td valign="top" style="border:none; height: 480px; background-color:#fafafa; width:100%;">'),
