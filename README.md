@@ -42,6 +42,7 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 - BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
 - A single-line dashboard control for tuning the active mode to a talkgroup or reflector ID. The field uses the existing `dvswitch.sh tune` command through a dedicated root helper; it does not use or install the separate DVS Mode Switcher application.
+- Mode-specific dashboard Favorites. Only the active mode's entries appear beside Tune; **Edit** opens a mode selector so entries for any supported mode can be added, changed, or deleted. Selecting a favorite sends its TG/ref through the same Tune control. Favorites are stored in `/etc/dvswitch-mode-buttons/favorites.json` and remain available after uninstall/reinstall.
 - Standalone DMR Master card rendering for BM, TGIF, and STFU; while YSF, P25, NXDN, or D-Star is active, it retains the last DMR talkgroup instead of displaying that mode’s tune ID.
 - STFU friendly-name lookup using the BM talkgroup list.
 - Friendly-name wrapping inside the DMR card.
@@ -82,7 +83,7 @@ cd ~/DVSwitch-Mode-Buttons
 sudo ./dvswitch-mode-buttons.sh --check
 ```
 
-`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, checks the DMR card's connection-state patch target, and reports whether either network password in `var.txt` is missing or still the default. The tuner submits only validated IDs and invokes a dedicated helper with no command-line arguments; the helper reads the ID from standard input and runs `dvswitch.sh tune`. For D-Star, YSF, P25, and NXDN, the tune confirmation and target persistence use DVSwitch's live mode when available, avoiding stale mode state after terminal mode changes. DMR submodes continue to use the saved Mode Buttons state. Version 1.0.0-test17 recognizes prior test8–test16 controls blocks during upgrades and keeps the DMR card populated with the current talkgroup while BM/TGIF reconnect, including the target-persistence v6 card variant; the card labels the network as `Connecting` until MMDVM_Bridge reports a successful login. It also corrects the DMR status variable used for the `Closing` and `Connection` states. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
+`--check` makes no changes. It validates prerequisites, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, checks the DMR card's connection-state patch target, and reports whether either network password in `var.txt` is missing or still the default. The tuner submits only validated IDs and invokes a dedicated helper with no command-line arguments; the helper reads the ID from standard input and runs `dvswitch.sh tune`. Favorites are filtered by the live selected mode. The editor's mode selector loads and saves each mode's own list; names and IDs are validated by a root-owned helper, and saves are atomic. For D-Star, YSF, P25, and NXDN, the tune confirmation and target persistence use DVSwitch's live mode when available, avoiding stale mode state after terminal mode changes. DMR submodes continue to use the saved Mode Buttons state. Version 1.0.0-test18 adds dashboard favorites and upgrades prior test8–test17 controls blocks. It keeps the DMR card populated with the current talkgroup while BM/TGIF reconnect and labels the network `Connecting` until MMDVM_Bridge reports a successful login; it also uses `$dmrstat` for the `Closing` and `Connection` checks. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression test is `tests/test-rx-monitor-moved-anchor.py`.
 
 ## Uninstall
 
@@ -100,11 +101,15 @@ Uninstall removes both mode helpers, the target-state helper, tuner helper, endp
 /usr/local/sbin/dvswitch-mode-buttons
 /usr/local/sbin/dvswitch-mode-targets
 /usr/local/sbin/dvswitch-mode-tune
+/usr/local/sbin/dvswitch-mode-favorites
+/usr/share/dvswitch/dvswitch-mode-favorites.js
 /usr/local/sbin/dvswitch-dmr-network -> /usr/local/sbin/dvswitch-mode-buttons (compatibility link)
 /var/lib/dvswitch-mode-buttons/
 /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup (root-owned, Apache group-writable saved DMR target)
 /var/backups/dvswitch-mode-buttons/
 ```
+
+`/etc/dvswitch-mode-buttons/favorites.json` contains separate favorites for BM, TGIF, STFU, YSF, P25, NXDN, and D-Star. It is retained by uninstall so an upgrade or reinstall does not erase the user's lists.
 
 The BM/TGIF network-switch code now lives in the same installed mode helper; the old DMR helper path remains as a compatibility symlink. `dvswitch-mode-targets` remains a separate runtime command because the patched `dvswitch.sh tune` path invokes it directly to save and retrieve targets. The state directory is `755` so Apache can read the card state. The saved DMR target is owned by `root:www-data` with mode `664`, allowing the status page to retain the live DMR talkgroup when the active mode changes. `mode-targets.json` remains private at `600`.
 

@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Validate and atomically save mode-scoped dashboard favorites."""
+
+import json
+import os
+import re
+import sys
+import tempfile
+from pathlib import Path
+
+PATH = Path('/etc/dvswitch-mode-buttons/favorites.json')
+MODES = {'BM', 'TGIF', 'STFU', 'YSF', 'P25', 'NXDN', 'DSTAR'}
+
+
+def fail(message):
+    print(f'ERROR: {message}', file=sys.stderr)
+    raise SystemExit(1)
+
+
+if os.geteuid() != 0:
+    fail('run through the dashboard sudo rule')
+try:
+    request = json.load(sys.stdin)
+except (json.JSONDecodeError, UnicodeDecodeError):
+    fail('invalid favorites data')
+
+mode = request.get('mode') if isinstance(request, dict) else None
+items = request.get('favorites') if isinstance(request, dict) else None
+if not isinstance(mode, str) or mode not in MODES or not isinstance(items, list) or len(items) > 30:
+    fail('invalid mode or favorites list')
+clean = []
+for item in items:
+    if not isinstance(item, dict):
+        fail('invalid favorite entry')
+    name = item.get('name')
+    target = item.get('target')
+    if not isinstance(name, str) or not 1 <= len(name.strip()) <= 32 or any(ord(c) < 32 for c in name):
+        fail('favorite names must contain 1 to 32 printable characters')
+    if not isinstance(target, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', target):
+        fail('invalid talkgroup or reflector ID')
+    clean.append({'name': name.strip(), 'target': target})
+
+data = {m: [] for m in sorted(MODES)}
+try:
+    if PATH.is_file():
+        previous = json.loads(PATH.read_text(encoding='utf-8'))
+        if isinstance(previous, dict):
+            for key in data:
+                if isinstance(previous.get(key), list):
+                    data[key] = previous[key]
+except (OSError, json.JSONDecodeError):
+    fail('existing favorites file is unreadable; it was left unchanged')
+data[mode] = clean
+PATH.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+fd, temporary = tempfile.mkstemp(prefix='.favorites.', dir=PATH.parent)
+try:
+    with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+        json.dump(data, stream, ensure_ascii=False, indent=2)
+        stream.write('\n')
+    os.chown(temporary, 0, 0)
+    os.chmod(temporary, 0o644)
+    os.replace(temporary, PATH)
+finally:
+    if os.path.exists(temporary):
+        os.unlink(temporary)
+print(f'PASS: saved {len(clean)} {mode} favorite(s).')
