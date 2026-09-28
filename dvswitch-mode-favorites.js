@@ -10,6 +10,17 @@
     const tuneStatus = document.getElementById('dvs-target-message');
     if (!root || !tuner || !input) return;
 
+    const controlLine = root.querySelector('.dvs-favorites-control-line');
+    const rxButton = Array.from(document.querySelectorAll('button')).find(function (button) {
+      return button.textContent.replace(/\s+/g, ' ').trim().includes('RX Monitor');
+    });
+    if (controlLine && rxButton) {
+      const oldContainer = rxButton.parentElement;
+      rxButton.classList.add('dvs-rx-monitor-inline');
+      controlLine.insertBefore(rxButton, controlLine.firstChild);
+      if (oldContainer && oldContainer !== controlLine && oldContainer.tagName === 'DIV' && !oldContainer.textContent.trim()) oldContainer.remove();
+    }
+
     const favoriteSelect = root.querySelector('.dvs-favorites-select');
     const status = root.querySelector('.dvs-favorites-status');
     const editButton = root.querySelector('.dvs-favorites-edit');
