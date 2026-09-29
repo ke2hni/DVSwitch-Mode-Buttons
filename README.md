@@ -145,4 +145,5 @@ See [LICENSE](LICENSE).
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223748" src="https://github.com/user-attachments/assets/264c340e-9fb7-46af-a9b9-b6f397e107e0" />
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223805" src="https://github.com/user-attachments/assets/396a44b9-c021-46c6-9d7c-7c18233d2436" />
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223821" src="https://github.com/user-attachments/assets/0b964808-9991-4e91-b399-03bf880682a0" />
+<img width="1600" height="852" alt="Screenshot 2026-09-28 235146" src="https://github.com/user-attachments/assets/d6d39e06-4e59-4ae4-95d9-711fe6f75947" />
 
