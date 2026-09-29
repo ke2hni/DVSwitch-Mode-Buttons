@@ -40,7 +40,7 @@ sudo ./dvswitch-mode-buttons.sh
 3) Exit
 ```
 
-Choose **1** to install the buttons or upgrade an existing installation to the current repository version. During that operation, the installer checks the BM and TGIF passwords in `/var/lib/dvswitch/dvs/var.txt`. If the alternate network's password is missing or still `passw0rd`, it prompts for that password and writes it into the generated `MMDVM_Bridge.<MODE>.ini` preset. [A blank password or the unchanged default stops the install as incomplete; it does not claim success or create a preset using the default credential.] The installer then installs the complete tested mode-button path:
+Choose **1** to install the buttons or upgrade an existing installation to the current repository version. During that operation, the installer checks the BM and TGIF passwords in `/var/lib/dvswitch/dvs/var.txt`. If the alternate network's password is missing or still `passw0rd`, it prompts for that password and writes it into the generated `MMDVM_Bridge.<MODE>.ini` preset. `A blank password or the unchanged default stops the install as incomplete; it does not claim success or create a preset using the default credential.` The installer then installs the complete tested mode-button path:
 
 - BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
