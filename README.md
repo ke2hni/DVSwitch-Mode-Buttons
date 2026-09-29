@@ -126,12 +126,12 @@ The BM/TGIF network-switch code now lives in the same installed mode helper; the
 
 ## Safety boundaries
 
-This repository does not modify `node68425` remotely, individual network cards, Local Activity rendering, or unrelated DVSwitch-Mods changes. It does not require DVSwitch-Mods to be installed.
+This repository is for a fresh install of DVSwitch which should be configured before installing this repository. This was tested on the following hardware, Raspberry Pi 4 with Dedian 12 (Bookworm) using the last supplied ASL 3 image containing Debian 12 (Bookworm), Raspberry Pi 5 with Dedian 13 (Trixie) using the last supplied ASL 3 image containing Debian 13 (Trixie), Dell Wyse 3040 with Debian 12 (Bookworm). It does not require DVSwitch-Mods to be installed but it is Highly Suggested.
 
-Test in this order:
+Tested in this order:
 
 ```text
-pi4test → pi5test → node3040 → node68425
+pi4test → pi5test → node3040
 ```
 
 Production testing requires explicit authorization.
