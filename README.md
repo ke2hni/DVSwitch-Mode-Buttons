@@ -1,7 +1,7 @@
 ![Platform](https://img.shields.io/badge/platform-DVSwitch-24527a)
 ![Debian](https://img.shields.io/badge/tested-Debian%2012%20%7C%2013-a80030)
 ![Architectures](https://img.shields.io/badge/MMDVM-ARM64%20%7C%20AMD64%20%7C%20i386-blue)
-![License](https://img.shields.io/badge/license-GNU-green)
+![License](https://img.shields.io/badge/license-GPLv3-green)
 
 Not required but highly suggested to install my DVSwitch Repairs & Mods Repository 1st.
 https://github.com/ke2hni/DVSwitch-Mods
