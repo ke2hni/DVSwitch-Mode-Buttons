@@ -1,3 +1,6 @@
+Not required but highly suggested to install my DVSwitch Repairs & Mods Repository 1st.
+https://github.com/ke2hni/DVSwitch-Mods
+
 # DVSwitch Mode Buttons
 
 Seven-mode dashboard selection for DVSwitch: **BM · TGIF · STFU · YSF · P25 · NXDN · D-Star**.
