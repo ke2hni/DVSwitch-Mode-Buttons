@@ -140,7 +140,7 @@ Production testing requires explicit authorization.
 
 See [LICENSE](LICENSE).
 
-<img width="1600" height="852" alt="Screenshot 2026-09-28 154713" src="https://github.com/user-attachments/assets/49398b00-2ef3-4064-aff4-ab10ba6338be" />
+
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223729" src="https://github.com/user-attachments/assets/2dd939b1-a8e2-4071-bfc8-5031b00946d3" />
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223748" src="https://github.com/user-attachments/assets/264c340e-9fb7-46af-a9b9-b6f397e107e0" />
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223805" src="https://github.com/user-attachments/assets/396a44b9-c021-46c6-9d7c-7c18233d2436" />
