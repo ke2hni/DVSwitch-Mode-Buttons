@@ -3,7 +3,7 @@
 ![Architectures](https://img.shields.io/badge/MMDVM-ARM64%20%7C%20AMD64%20%7C%20i386-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-green)
 
-Not required but highly suggested to install my DVSwitch Repairs & Mods Repository 1st.
+Not required but highly suggested to install my DVSwitch Repairs & Mods Repository 1st. The reason is DVSwitch has many problems that they have not repaired yet, my DVSwitch Repairs & Mods Repository fixes those problems & together with this mod, makes DVSwitch operate like it should have from the begining.
 https://github.com/ke2hni/DVSwitch-Mods
 
 # DVSwitch Mode Buttons
