@@ -8,6 +8,7 @@ from __future__ import annotations
 import ast
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -85,10 +86,14 @@ def main() -> None:
             environment["STATUS_CANDIDATE"] = str(candidate)
             subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)
             upgraded = candidate.read_text()
-            assert "standalone DMR Master display v8" in upgraded
+            assert "standalone DMR Master display v9" in upgraded
             assert "function dvsButtonsDmrRememberTalkgroup(" in upgraded
             assert "dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting = false)" in upgraded
             assert "in_array($liveMode, array('DMR', 'BM', 'TGIF'), true)" in upgraded
+            current_mode = upgraded.split("function dvsButtonsDmrCurrentMode(", 1)[1].split("\n}", 1)[0]
+            assert "selectedModeFile" in current_mode
+            assert current_mode.index("$mode === 'DMR'") > current_mode.index("$selectedMode =")
+            assert "in_array($selectedMode, array('BM', 'TGIF', 'STFU'), true)" in current_mode
             assert "DMR STFU Master" not in upgraded
             assert "array('DMR', 'BM', 'TGIF', 'STFU')" not in upgraded
             assert "dvs-dmr-connection-state" in upgraded
@@ -99,7 +104,16 @@ def main() -> None:
             subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)
             assert candidate.read_text() == upgraded, "v7-to-current DMR card upgrade is not idempotent"
 
-    print("PASS: varied v7 DMR card display functions upgrade to BM/TGIF-only v8 and stay idempotent")
+            if shutil.which("php"):
+                helper_region = upgraded[upgraded.index("// DVSwitch-Mode-Buttons: standalone DMR Master display v9"):]
+                helper_region = helper_region.split("?>", 1)[0]
+                state_file = Path(directory) / f"current-mode-{index}"
+                state_file.write_text("STFU\n", encoding="utf-8")
+                php_program = "<?php\n" + helper_region + f"\necho dvsButtonsDmrCurrentMode(array('tlv' => array('ambe_mode' => 'DMR')), {str(state_file)!r});\n?>"
+                result = subprocess.run(["php"], input=php_program, text=True, capture_output=True, check=True)
+                assert result.stdout.endswith("STFU"), f"DMR ABInfo overrode selected STFU mode: {result.stdout!r}"
+
+    print("PASS: DMR card upgrades to v9, preserves BM/TGIF state during STFU, and stays idempotent")
 
 
 if __name__ == "__main__":

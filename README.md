@@ -113,10 +113,12 @@ sudo ./dvswitch-mode-buttons.sh --check
 
 Version 1.0.0-test27 puts the current BM/TGIF talkgroup number on its own line
 beneath the friendly room name. Version 1.0.0-test28 prevents STFU target saves
-from overwriting the saved BM/TGIF card target. On upgrade, it repairs the
-known older mismatch when the saved value matches the active non-DMR target,
-using the saved BM/TGIF per-mode target. The DMR card continues to retain its
-last BM/TGIF selection while another mode is active.
+from overwriting the saved BM/TGIF card target and repairs the known older
+saved-target mismatch during upgrade. Version 1.0.0-test29 also makes the DMR
+card honor the selected STFU button mode before interpreting the bridge's
+generic DMR `ambe_mode`; this prevents an STFU tune from being recorded as a
+BM/TGIF talkgroup during dashboard refresh. The DMR card retains its last
+BM/TGIF selection while another mode is active.
 
 ## Uninstall
 
