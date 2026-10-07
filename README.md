@@ -8,6 +8,15 @@ https://github.com/ke2hni/DVSwitch-Mods
 
 # DVSwitch Mode Buttons
 
+## Optional DVSwitch-Mods integration
+
+When DVSwitch-Mods is also installed, the BM/TGIF switch helper optionally
+records a timestamped network-selection event through
+`/usr/local/sbin/dvswitch-mods-record-dmr-network` for Gateway Activity
+labels. The recorder is checked only after a successful DMR switch; its
+absence does not affect Mode Buttons installation or switching. Each
+repository remains independently installable.
+
 Seven-mode dashboard selection for DVSwitch: **BM · TGIF · STFU · YSF · P25 · NXDN · D-Star**.
 
 ## 🚀 Quick start — install everything
@@ -152,3 +161,10 @@ See [LICENSE](LICENSE).
 <img width="1600" height="852" alt="Screenshot 2026-09-28 223821" src="https://github.com/user-attachments/assets/0b964808-9991-4e91-b399-03bf880682a0" />
 <img width="1600" height="852" alt="Screenshot 2026-09-28 235146" src="https://github.com/user-attachments/assets/d6d39e06-4e59-4ae4-95d9-711fe6f75947" />
 
+# Optional DVSwitch-Mods integration
+
+When the separate DVSwitch-Mods repository is installed, the BM/TGIF switch
+helper optionally records a timestamped network-selection event through
+`/usr/local/sbin/dvswitch-mods-record-dmr-network`. This supports accurate
+Gateway Activity labels. The recorder is checked only after a successful DMR
+switch; its absence does not affect Mode Buttons installation or switching.
