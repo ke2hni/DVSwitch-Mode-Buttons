@@ -34,7 +34,8 @@ class DmrRoomLabelThemeTest(unittest.TestCase):
         self.assertIn("chmod 664 /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup", INSTALLER)
         target_helper = (ROOT / "dvswitch-mode-targets").read_text()
         self.assertIn('"$STATE_DIR/last-dmr-talkgroup"', target_helper)
-        self.assertIn('"$mode" == BM || "$mode" == TGIF || "$mode" == STFU', target_helper)
+        self.assertIn('"$mode" == BM || "$mode" == TGIF', target_helper)
+        self.assertNotIn('"$mode" == BM || "$mode" == TGIF || "$mode" == STFU', target_helper)
         self.assertIn('chown root:www-data "$last_dmr_tmp"', target_helper)
         self.assertIn('chmod 664 "$last_dmr_tmp"', target_helper)
 

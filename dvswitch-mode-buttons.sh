@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test27"
+VERSION="1.0.0-test28"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -208,8 +208,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test28 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -525,8 +525,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test28 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -536,7 +536,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test28 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <section id="dvs-favorites" hidden aria-label="Mode favorites"><div class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div><label class="dvs-favorites-select-label" for="dvs-favorites-select" hidden>Favorite</label><select id="dvs-favorites-select" class="dvs-favorites-select" aria-label="Active mode favorite"><option value="">Select favorite</option></select><button type="button" class="button link dvs-favorites-edit">Edit</button>
@@ -564,7 +564,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test28 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -748,7 +748,19 @@ install_dashboard_components
 ./install-standalone-dmr-master-card.sh
 saved_dmr_card_mode=''
 [[ -r /var/lib/dvswitch-mode-buttons/last-dmr-card-mode ]] && saved_dmr_card_mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/last-dmr-card-mode)
+saved_dmr_network=''
+[[ -r /var/lib/dvswitch-mode-buttons/last-dmr-network ]] && saved_dmr_network=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/last-dmr-network)
+repair_saved_dmr_card_mode=0
+case "$saved_dmr_card_mode" in
+  BM|TGIF) ;;
+  *)
+    case "$saved_dmr_network" in
+      BM|TGIF) saved_dmr_card_mode=$saved_dmr_network; repair_saved_dmr_card_mode=1 ;;
+    esac
+    ;;
+esac
 saved_dmr_target=''
+existing_dmr_target=''
 if [[ -r /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup ]]; then
   existing_dmr_target=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup)
   [[ "$existing_dmr_target" =~ ^[0-9]+$ && "$existing_dmr_target" != 0 ]] && saved_dmr_target=$existing_dmr_target
@@ -759,6 +771,27 @@ if [[ -z "$saved_dmr_target" ]]; then
     *) saved_dmr_target='';;
   esac
 fi
+# Earlier releases also copied STFU's active target into the DMR-only saved
+# card field. If that exact mismatch is present, recover the DMR value from
+# its own per-mode target while preserving valid saved values in other cases.
+repair_saved_dmr_target=0
+current_selected_mode=''
+[[ -r /var/lib/dvswitch-mode-buttons/current-mode ]] && current_selected_mode=$(tr -d '[:space:]' < /var/lib/dvswitch-mode-buttons/current-mode)
+case "$current_selected_mode" in
+  BM|TGIF|DMR|'') ;;
+  *)
+    case "$saved_dmr_card_mode" in
+      BM|TGIF)
+        current_mode_target=$(/usr/local/sbin/dvswitch-mode-targets get "$current_selected_mode" 2>/dev/null || true)
+        saved_mode_target=$(/usr/local/sbin/dvswitch-mode-targets get "$saved_dmr_card_mode" 2>/dev/null || true)
+        if [[ "$existing_dmr_target" =~ ^[0-9]+$ && "$current_mode_target" =~ ^[0-9]+$ && "$saved_mode_target" =~ ^[0-9]+$ && "$existing_dmr_target" == "$current_mode_target" && "$existing_dmr_target" != "$saved_mode_target" ]]; then
+          saved_dmr_target=$saved_mode_target
+          repair_saved_dmr_target=1
+        fi
+        ;;
+    esac
+    ;;
+esac
 if [[ ! -e /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup ]]; then
   install -o root -g www-data -m 664 /dev/stdin /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup <<<"$saved_dmr_target"
 fi
@@ -908,6 +941,22 @@ if [[ -e /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup ]]; then
   chmod 664 /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup
 else
   install -o root -g www-data -m 664 /dev/stdin /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup <<<"$saved_dmr_target"
+fi
+if ((repair_saved_dmr_target)); then
+  saved_target_tmp=$(mktemp /var/lib/dvswitch-mode-buttons/.last-dmr-talkgroup.XXXXXX)
+  printf '%s\n' "$saved_dmr_target" > "$saved_target_tmp"
+  chown root:www-data "$saved_target_tmp"
+  chmod 664 "$saved_target_tmp"
+  mv -f "$saved_target_tmp" /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup
+  echo "PASS: restored saved DMR card target to $saved_dmr_target from the $saved_dmr_card_mode target; STFU target remains mode-specific."
+fi
+if ((repair_saved_dmr_card_mode)); then
+  saved_mode_tmp=$(mktemp /var/lib/dvswitch-mode-buttons/.last-dmr-card-mode.XXXXXX)
+  printf '%s\n' "$saved_dmr_card_mode" > "$saved_mode_tmp"
+  chown root:root "$saved_mode_tmp"
+  chmod 644 "$saved_mode_tmp"
+  mv -f "$saved_mode_tmp" /var/lib/dvswitch-mode-buttons/last-dmr-card-mode
+  echo "PASS: restored saved BM/TGIF DMR card mode to $saved_dmr_card_mode."
 fi
 php -l "$STATUS_TARGET"
 systemctl restart apache2
