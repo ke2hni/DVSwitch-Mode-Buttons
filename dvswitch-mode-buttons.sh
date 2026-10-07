@@ -83,7 +83,7 @@ import tempfile
 from pathlib import Path
 
 STATUS_MARKER = re.compile(
-    r"^// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-7]$", re.MULTILINE
+    r"^// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-8]$", re.MULTILINE
 )
 BUTTONS_HEADING = (
     'echo "<tr><th colspan=\\"2\\">".dvsButtonsDmrMasterHeading($dmrMasterHost, $abinfo).'
@@ -236,7 +236,7 @@ def patch_status(text: str) -> tuple[str, bool]:
         "dvsButtonsDmrMasterHeading",
         "dvsButtonsDmrMasterDisplay",
     ]
-    if re.search(r"standalone DMR Master display v[67]", text):
+    if re.search(r"standalone DMR Master display v[678]", text):
         required_helpers.extend(("dvsButtonsDmrSavedCardMode", "dvsButtonsDmrSavedNetwork", "dvsButtonsDmrCurrentMode", "dvsButtonsDmrSavedTalkgroup"))
     for name in required_helpers:
         if len(re.findall(r"^function " + re.escape(name) + r"\(", text, re.MULTILINE)) != 1:
@@ -621,7 +621,7 @@ path = Path(sys.argv[1])
 if path.is_symlink() or not path.is_file():
     raise SystemExit('ERROR: status.php is missing or is not a regular file')
 text = path.read_text(encoding='utf-8')
-markers = re.findall(r'// DVSwitch-Mode-Buttons: standalone DMR Master display v([1-7])', text)
+markers = re.findall(r'// DVSwitch-Mode-Buttons: standalone DMR Master display v([1-8])', text)
 if len(markers) > 1:
     raise SystemExit('ERROR: duplicate standalone DMR Master markers found')
 if "strpos($dmrstat, 'Opening') !== false" not in text:
@@ -755,7 +755,7 @@ if [[ -r /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup ]]; then
 fi
 if [[ -z "$saved_dmr_target" ]]; then
   case "$saved_dmr_card_mode" in
-    BM|TGIF|STFU) saved_dmr_target=$(/usr/local/sbin/dvswitch-mode-targets get "$saved_dmr_card_mode");;
+    BM|TGIF) saved_dmr_target=$(/usr/local/sbin/dvswitch-mode-targets get "$saved_dmr_card_mode");;
     *) saved_dmr_target='';;
   esac
 fi
@@ -768,15 +768,15 @@ import os, re, tempfile
 
 path = Path('/usr/share/dvswitch/include/status.php')
 text = path.read_text(encoding='utf-8')
-markers = re.findall(r'// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-7]', text)
+markers = re.findall(r'// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-8]', text)
 if len(markers) != 1:
     raise SystemExit('ERROR: expected one supported standalone DMR Master marker')
-text = re.sub(r'// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-7]', '// DVSwitch-Mode-Buttons: standalone DMR Master display v7', text, count=1)
+text = re.sub(r'// DVSwitch-Mode-Buttons: standalone DMR Master display v[1-8]', '// DVSwitch-Mode-Buttons: standalone DMR Master display v8', text, count=1)
 saved = r'''function dvsButtonsDmrSavedCardMode() {
         $file = '/var/lib/dvswitch-mode-buttons/last-dmr-card-mode';
         if (!is_readable($file)) { return ''; }
         $mode = strtoupper(trim((string)file_get_contents($file)));
-        return in_array($mode, array('BM', 'TGIF', 'STFU'), true) ? $mode : '';
+        return in_array($mode, array('BM', 'TGIF'), true) ? $mode : '';
 }
 
 function dvsButtonsDmrSavedNetwork() {
@@ -832,10 +832,8 @@ old_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
 }'''
 new_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
         $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        if ($liveMode === 'STFU') { return 'DMR STFU Master'; }
         if ($liveMode === 'DMR') { return 'DMR '.dvsButtonsDmrNetwork($master).' Master'; }
         $saved = dvsButtonsDmrSavedCardMode();
-        if ($saved === 'STFU') { return 'DMR STFU Master'; }
         if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
         return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
 }'''
@@ -859,14 +857,11 @@ new_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting
                 if ($network !== 'BM' && $network !== 'TGIF') { $network = dvsButtonsDmrNetwork($master); }
         } elseif ($liveMode === 'BM' || $liveMode === 'TGIF') {
                 $network = $liveMode;
-        } elseif ($liveMode === 'STFU') {
-                $network = 'BM';
         } else {
-                $saved = dvsButtonsDmrSavedCardMode();
-                $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
+                $network = dvsButtonsDmrSavedNetwork();
                 if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
         }
-        $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);
+        $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);
         $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
         if ($connecting && $talkgroup === '') { $talkgroup = dvsButtonsDmrSavedTalkgroup(); }
         if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }'''
@@ -962,8 +957,10 @@ if text.count(not_connected_row) == 1:
 elif text.count(connecting_row) != 1:
     raise SystemExit('ERROR: DMR Not Connected row is unsupported or ambiguous')
 
-if 'standalone DMR Master display v7' not in text or 'dvsButtonsDmrSavedCardMode' not in text or 'dvsButtonsDmrSavedTalkgroup' not in text or 'dvsButtonsDmrRememberTalkgroup' not in text or 'dvs-dmr-connection-state' not in text:
+if 'standalone DMR Master display v8' not in text or 'dvsButtonsDmrSavedCardMode' not in text or 'dvsButtonsDmrSavedTalkgroup' not in text or 'dvsButtonsDmrRememberTalkgroup' not in text or 'dvs-dmr-connection-state' not in text:
     raise SystemExit('ERROR: state-aware DMR card upgrade was not applied')
+if "return 'DMR STFU Master';" in text or "$isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);" in text:
+    raise SystemExit('ERROR: STFU is still included in the DMR Master card')
 stat=path.stat(); fd,tmp=tempfile.mkstemp(dir=path.parent)
 with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
 os.chown(tmp,stat.st_uid,stat.st_gid); os.chmod(tmp,stat.st_mode & 0o7777); os.replace(tmp,path)

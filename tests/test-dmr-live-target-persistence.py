@@ -72,7 +72,7 @@ def main() -> None:
             assert "function dvsButtonsDmrRememberTalkgroup(" in upgraded
             assert "if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }" in upgraded
             assert "$talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();" in upgraded
-            assert "standalone DMR Master display v7" in upgraded
+            assert "standalone DMR Master display v8" in upgraded
             assert "dvs-dmr-connection-state" in upgraded
             assert "dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo, true)" in upgraded
             assert "strpos($dmrstatus" not in upgraded

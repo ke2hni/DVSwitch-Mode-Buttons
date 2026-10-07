@@ -60,10 +60,9 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 - Per-mode target persistence.
 - A single-line dashboard control for tuning the active mode to a talkgroup or reflector ID. The field uses the existing `dvswitch.sh tune` command through a dedicated root helper; it does not use or install the separate DVS Mode Switcher application.
 - Mode-specific dashboard Favorites. Only the active mode's entries appear beside Tune; **Edit** opens a mode selector so entries for any supported mode can be added, changed, or deleted. Selecting a favorite sends its TG/ref through the same Tune control. Favorites are stored in `/etc/dvswitch-mode-buttons/favorites.json` and remain available after uninstall/reinstall.
-- Standalone DMR Master card rendering for BM, TGIF, and STFU; while YSF, P25, NXDN, or D-Star is active, it retains the last DMR talkgroup instead of displaying that mode’s tune ID.
-- STFU friendly-name lookup using the BM talkgroup list.
+- Standalone DMR Master card rendering for BM and TGIF; while STFU, YSF, P25, NXDN, or D-Star is active, it retains the last BM/TGIF talkgroup instead of displaying another mode’s tune ID.
 - Friendly-name wrapping inside the DMR card.
-- A saved DMR talkgroup that the dashboard updates only while the live mode is DMR/STFU; non-DMR mode IDs never replace it.
+- A saved DMR talkgroup that the dashboard updates only while BM or TGIF is active; STFU and other mode IDs never replace it.
 - The responsive DVSwitch dashboard layout, using the separate `dvswitch-display-layout.sh` script. The installer runs its read-only check and then its normal apply action during option 1, so the dashboard width is corrected along with the buttons.
 
 The dashboard mode buttons and inline talkgroup/reflector tuner work whether they are installed before or after the
@@ -71,8 +70,11 @@ DVSwitch-Mods RX Monitor position modification. If RX Monitor has already moved
 to the left status column, the installer places the mode buttons in the vacated
 centered area and preserves the relocated RX Monitor control.
 
-The standalone DMR card is self-contained and does not require the `DVSwitch-Mods` repository.
-Its BM, TGIF, and STFU cards display the `Room` label above the current
+The BM/TGIF DMR Master card is self-contained and does not require the
+`DVSwitch-Mods` repository. STFU is not treated as a DMR Master network by
+this repository; its separate status and activity card is provided by the
+independently installable `dashboard-stfu-activity` component in DVSwitch-Mods.
+The BM and TGIF card displays the `Room` label above the current
 network/talkgroup name.
 The label keeps its light-theme color in the standard dashboard. When the
 DVSwitch-Mods Dark Mode overlay is installed, its theme stylesheet changes the

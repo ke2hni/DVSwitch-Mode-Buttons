@@ -56,14 +56,11 @@ function dvsButtonsDmrName($network, $talkgroup) {
 }
 
 function dvsButtonsDmrMasterHeading($master, $abinfo) {
-        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        if ($mode === 'STFU') { return 'DMR STFU Master'; }
         return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
 }
 
 function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
+        $network = dvsButtonsDmrNetwork($master);
         $talkgroup = dvsButtonsDmrTalkgroup($abinfo);
         if ($talkgroup === '') { return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'; }
         $name = dvsButtonsDmrName($network, $talkgroup);
@@ -125,4 +122,4 @@ print(f'PASS: standalone DMR Master display installed. Backup: {backup}')
 PY
 
 php -l "$STATUS"
-echo 'PASS: DMR Master card is self-contained and supports STFU friendly names.'
+echo 'PASS: BM/TGIF DMR Master card is self-contained.'

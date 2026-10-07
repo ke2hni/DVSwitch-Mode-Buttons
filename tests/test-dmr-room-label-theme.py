@@ -21,9 +21,15 @@ class DmrRoomLabelThemeTest(unittest.TestCase):
         self.assertIn("dvsButtonsDmrRememberTalkgroup($talkgroup)", INSTALLER)
         self.assertIn("dvsButtonsDmrCurrentMode($abinfo)", INSTALLER)
         self.assertIn("last-dmr-talkgroup", INSTALLER)
-        self.assertIn("display v7", INSTALLER)
-        self.assertIn("$isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);", INSTALLER)
+        self.assertIn("display v8", INSTALLER)
+        self.assertIn("$isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);", INSTALLER)
         self.assertIn("if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }", INSTALLER)
+        heading = INSTALLER.split("new_heading='''", 1)[1].split("'''", 1)[0]
+        self.assertNotIn("STFU", heading)
+        display = INSTALLER.split("new_display='''", 1)[1].split("'''", 1)[0]
+        self.assertNotIn("STFU", display)
+        self.assertIn('data-mode="STFU"', INSTALLER)
+        self.assertIn("return in_array($mode, array('BM', 'TGIF'), true) ? $mode : '';", INSTALLER)
         self.assertIn("chown root:www-data /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup", INSTALLER)
         self.assertIn("chmod 664 /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup", INSTALLER)
         target_helper = (ROOT / "dvswitch-mode-targets").read_text()
