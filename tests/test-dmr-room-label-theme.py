@@ -11,10 +11,10 @@ CARD_INSTALLER = (ROOT / "install-standalone-dmr-master-card.sh").read_text()
 
 class DmrRoomLabelThemeTest(unittest.TestCase):
     def test_installed_card_emits_semantic_label_for_named_and_fallback_rows(self):
-        self.assertIn("class=\\\"dvs-dmr-room-label\\\"", INSTALLER)
+        self.assertIn('class="dvs-dmr-room-label"', INSTALLER)
         self.assertIn('class="dvs-dmr-room-label"', CARD_INSTALLER)
         self.assertIn("if ($talkgroup === '')", CARD_INSTALLER)
-        self.assertIn("dvsButtonsDmrMasterDisplay($master, $abinfo)", INSTALLER)
+        self.assertIn("function dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting = false)", INSTALLER)
 
     def test_non_dmr_modes_use_the_saved_dmr_target(self):
         self.assertIn("dvsButtonsDmrSavedTalkgroup()", INSTALLER)
@@ -24,9 +24,9 @@ class DmrRoomLabelThemeTest(unittest.TestCase):
         self.assertIn("display v8", INSTALLER)
         self.assertIn("$isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);", INSTALLER)
         self.assertIn("if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }", INSTALLER)
-        heading = INSTALLER.split("new_heading='''", 1)[1].split("'''", 1)[0]
+        heading = INSTALLER.split("new_heading_function = r'''", 1)[1].split("'''", 1)[0]
         self.assertNotIn("STFU", heading)
-        display = INSTALLER.split("new_display='''", 1)[1].split("'''", 1)[0]
+        display = INSTALLER.split("new_display_function = r'''", 1)[1].split("'''", 1)[0]
         self.assertNotIn("STFU", display)
         self.assertIn('data-mode="STFU"', INSTALLER)
         self.assertIn("return in_array($mode, array('BM', 'TGIF'), true) ? $mode : '';", INSTALLER)
@@ -38,12 +38,11 @@ class DmrRoomLabelThemeTest(unittest.TestCase):
         self.assertIn('chown root:www-data "$last_dmr_tmp"', target_helper)
         self.assertIn('chmod 664 "$last_dmr_tmp"', target_helper)
 
-    def test_upgrade_migrates_plain_and_previously_formatted_labels(self):
-        self.assertIn("plain_master =", INSTALLER)
-        self.assertIn("old_formatted_master =", INSTALLER)
-        self.assertIn("themed_master =", INSTALLER)
-        self.assertIn("themed_display =", INSTALLER)
-        self.assertIn("ERROR: DMR Room-label formatting is incomplete or ambiguous", INSTALLER)
+    def test_upgrade_rewrites_marked_card_functions_structurally(self):
+        self.assertIn("heading_pattern = re.compile", INSTALLER)
+        self.assertIn("function_pattern = re.compile", INSTALLER)
+        self.assertIn("expected exactly one DMR Master display function", INSTALLER)
+        self.assertIn("expected one supported DMR Master heading function", INSTALLER)
 
 
 if __name__ == "__main__":

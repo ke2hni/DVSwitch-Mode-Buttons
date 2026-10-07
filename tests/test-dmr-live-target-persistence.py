@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 
-"""Exercise the installer upgrade from an installed v6 DMR card."""
+"""Exercise the installer upgrade from a v7 DMR card with varied helper formatting."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = (ROOT / "dvswitch-mode-buttons.sh").read_text()
@@ -40,25 +39,42 @@ def literal_assignment(tree: ast.Module, wanted: str) -> str:
 def main() -> None:
     code = embedded_python()
     tree = ast.parse(code)
-    old_display = literal_assignment(tree, "old_v6_display")
-    persistent_display = literal_assignment(tree, "old_v6_persistent_display")
-    themed_master = literal_assignment(tree, "themed_master")
-    themed_display = literal_assignment(tree, "themed_display")
     not_connected_row = literal_assignment(tree, "not_connected_row")
     helpers = (
         "dvsButtonsDmrNetwork", "dvsButtonsDmrTalkgroup", "dvsButtonsDmrName",
         "dvsButtonsDmrSavedCardMode", "dvsButtonsDmrSavedNetwork",
         "dvsButtonsDmrCurrentMode", "dvsButtonsDmrSavedTalkgroup",
-        "dvsButtonsDmrMasterHeading",
+        "dvsButtonsDmrRememberTalkgroup",
     )
     with tempfile.TemporaryDirectory() as directory:
-        for index, display_prefix in enumerate((old_display, persistent_display)):
+        for index, display in enumerate((
+            """function dvsButtonsDmrMasterDisplay($master, $abinfo) {
+        $mode = 'STFU';
+        $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
+        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);
+        $name = dvsButtonsDmrName($network, $talkgroup);
+        $display = ($name !== '') ? $name : 'TG '.$talkgroup;
+        return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}""",
+            """function dvsButtonsDmrMasterDisplay($master, $abinfo) {
+        $liveMode = dvsButtonsDmrCurrentMode($abinfo);
+        $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);
+        $network = ($liveMode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
+        $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
+        if ($isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }
+        $name = dvsButtonsDmrName($network, $talkgroup);
+        $display = ($name !== '') ? $name : 'TG '.$talkgroup;
+        return htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}""",
+        )):
             fixture = "<?php\ninclude_once dirname(dirname(__FILE__)).'/include/functions.php';\n"
-            fixture += "// DVSwitch-Mode-Buttons: standalone DMR Master display v6\n"
+            fixture += "// DVSwitch-Mode-Buttons: standalone DMR Master display v7\n"
             fixture += "".join(f"function {name}($value) {{ return ''; }}\n" for name in helpers)
-            fixture += display_prefix + "\n"
-            fixture += f"        if ($talkgroup === '') {{ return {themed_master} }}\n"
-            fixture += f"        return {themed_display}\n}}\n?>\n"
+            fixture += "function dvsButtonsDmrMasterHeading($master, $abinfo) {\n"
+            fixture += "        $saved = dvsButtonsDmrSavedCardMode();\n"
+            fixture += "        if ($saved === 'STFU') { return 'DMR STFU Master'; }\n"
+            fixture += "        return 'DMR '.dvsButtonsDmrNetwork($master).' Master';\n}\n"
+            fixture += display + "\n?>\n"
             fixture += "if (strpos($dmrstat, 'Logged') !== false) { echo 'logged'; }\n"
             fixture += "else if (strpos($dmrstat, 'Opening') !== false || strpos($dmrstatus, 'Closing') !== false || strpos($dmrstatus, 'Connection') !== false) {\n"
             fixture += "    " + not_connected_row + "\n}\n"
@@ -69,18 +85,20 @@ def main() -> None:
             environment["STATUS_CANDIDATE"] = str(candidate)
             subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)
             upgraded = candidate.read_text()
-            assert "function dvsButtonsDmrRememberTalkgroup(" in upgraded
-            assert "if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }" in upgraded
-            assert "$talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();" in upgraded
             assert "standalone DMR Master display v8" in upgraded
+            assert "function dvsButtonsDmrRememberTalkgroup(" in upgraded
+            assert "dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting = false)" in upgraded
+            assert "in_array($liveMode, array('DMR', 'BM', 'TGIF'), true)" in upgraded
+            assert "DMR STFU Master" not in upgraded
+            assert "array('DMR', 'BM', 'TGIF', 'STFU')" not in upgraded
             assert "dvs-dmr-connection-state" in upgraded
             assert "dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo, true)" in upgraded
             assert "strpos($dmrstatus" not in upgraded
             assert ">Not Connected</span>" not in upgraded
             subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)
-            assert candidate.read_text() == upgraded, "v6-to-current DMR card upgrade is not idempotent"
+            assert candidate.read_text() == upgraded, "v7-to-current DMR card upgrade is not idempotent"
 
-    print("PASS: both v6 DMR card variants upgrade to a connecting TG display, fix the status typo, and stay idempotent")
+    print("PASS: varied v7 DMR card display functions upgrade to BM/TGIF-only v8 and stay idempotent")
 
 
 if __name__ == "__main__":

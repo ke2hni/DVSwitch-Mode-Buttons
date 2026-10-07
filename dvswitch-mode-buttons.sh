@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test25"
+VERSION="1.0.0-test26"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -208,8 +208,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test25 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -525,8 +525,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test25 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -536,7 +536,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test25 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <section id="dvs-favorites" hidden aria-label="Mode favorites"><div class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div><label class="dvs-favorites-select-label" for="dvs-favorites-select" hidden>Favorite</label><select id="dvs-favorites-select" class="dvs-favorites-select" aria-label="Active mode favorite"><option value="">Select favorite</option></select><button type="button" class="button link dvs-favorites-edit">Edit</button>
@@ -564,7 +564,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test25 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -593,7 +593,7 @@ import re, sys
 from pathlib import Path
 path = Path(sys.argv[1])
 text = path.read_text(encoding='utf-8')
-button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24) -->', text))
+button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26) -->', text))
 if len(button_markers) > 1:
     raise SystemExit('ERROR: duplicate Mode Buttons blocks found')
 if button_markers:
@@ -825,32 +825,19 @@ if 'function dvsButtonsDmrRememberTalkgroup(' not in text:
     saved_anchor = 'function dvsButtonsDmrSavedTalkgroup('
     if text.count(saved_anchor) != 1: raise SystemExit('ERROR: saved DMR talkgroup helper anchor is ambiguous')
     text=text.replace(saved_anchor, remember_helper+saved_anchor, 1)
-old_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
-        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        if ($mode === 'STFU') { return 'DMR STFU Master'; }
-        return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
-}'''
-new_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
+new_heading_function = r'''function dvsButtonsDmrMasterHeading($master, $abinfo) {
         $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
         if ($liveMode === 'DMR') { return 'DMR '.dvsButtonsDmrNetwork($master).' Master'; }
         $saved = dvsButtonsDmrSavedCardMode();
         if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
         return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
 }'''
-old_v5_heading='''function dvsButtonsDmrMasterHeading($master, $abinfo) {
-        $liveMode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        $saved = dvsButtonsDmrSavedCardMode();
-        if ($liveMode === 'STFU' || $saved === 'STFU') { return 'DMR STFU Master'; }
-        if ($saved === 'BM' || $saved === 'TGIF') { return 'DMR '.$saved.' Master'; }
-        return 'DMR '.dvsButtonsDmrNetwork($master).' Master';
-}'''
-text=text.replace(old_heading,new_heading,1)
-text=text.replace(old_v5_heading,new_heading,1)
-old_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $mode = isset($abinfo['tlv']['ambe_mode']) ? strtoupper(trim((string)$abinfo['tlv']['ambe_mode'])) : '';
-        $network = ($mode === 'STFU') ? 'BM' : dvsButtonsDmrNetwork($master);
-        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
-new_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting = false) {
+heading_pattern = re.compile(r'(?ms)^function dvsButtonsDmrMasterHeading\([^\n]*\) \{\n.*?^\}')
+heading_matches = list(heading_pattern.finditer(text))
+if len(heading_matches) != 1 or 'dvsButtonsDmrNetwork' not in heading_matches[0].group(0):
+    raise SystemExit(f'ERROR: expected one supported DMR Master heading function; found {len(heading_matches)}')
+text = text[:heading_matches[0].start()] + new_heading_function + text[heading_matches[0].end():]
+new_display_function = r'''function dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting = false) {
         $liveMode = dvsButtonsDmrCurrentMode($abinfo);
         if ($liveMode === 'DMR') {
                 $network = $connecting ? dvsButtonsDmrSavedNetwork() : '';
@@ -864,85 +851,23 @@ new_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting
         $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);
         $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
         if ($connecting && $talkgroup === '') { $talkgroup = dvsButtonsDmrSavedTalkgroup(); }
-        if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }'''
-old_v5_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $saved = dvsButtonsDmrSavedCardMode();
-        $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
-        if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
-        $talkgroup = dvsButtonsDmrTalkgroup($abinfo);'''
-display_changed = False
-for old in (old_display, old_v5_display):
-    if text.count(old) == 1:
-        text=text.replace(old,new_display,1)
-        display_changed = True
-        break
-old_v6_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $liveMode = dvsButtonsDmrCurrentMode($abinfo);
-        if ($liveMode === 'DMR') {
-                $network = dvsButtonsDmrNetwork($master);
-        } elseif ($liveMode === 'BM' || $liveMode === 'TGIF') {
-                $network = $liveMode;
-        } elseif ($liveMode === 'STFU') {
-                $network = 'BM';
+        if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }
+        if ($talkgroup === '') {
+                $display = (string)$master;
         } else {
-                $saved = dvsButtonsDmrSavedCardMode();
-                $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
-                if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
+                $name = dvsButtonsDmrName($network, $talkgroup);
+                $display = ($name !== '') ? $name : 'TG '.$talkgroup;
         }
-        $talkgroup = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true) ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();'''
-old_v6_persistent_display='''function dvsButtonsDmrMasterDisplay($master, $abinfo) {
-        $liveMode = dvsButtonsDmrCurrentMode($abinfo);
-        if ($liveMode === 'DMR') {
-                $network = dvsButtonsDmrNetwork($master);
-        } elseif ($liveMode === 'BM' || $liveMode === 'TGIF') {
-                $network = $liveMode;
-        } elseif ($liveMode === 'STFU') {
-                $network = 'BM';
-        } else {
-                $saved = dvsButtonsDmrSavedCardMode();
-                $network = ($saved === 'STFU') ? 'BM' : dvsButtonsDmrSavedNetwork();
-                if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
-        }
-        $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);
-        $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
-        if ($isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }'''
-if not display_changed:
-    if text.count(old_v6_display) == 1:
-        text=text.replace(old_v6_display,new_display,1)
-        display_changed = True
-    elif text.count(old_v6_persistent_display) == 1:
-        text=text.replace(old_v6_persistent_display,new_display,1)
-        display_changed = True
-    elif text.count(new_display) == 1:
-        display_changed = True
-if not display_changed:
-    raise SystemExit('ERROR: DMR Master display function is unsupported or ambiguous')
-plain_master = "return 'Room<br>'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');"
-plain_display = "return 'Room<br>'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');"
-old_formatted_master = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
-old_formatted_display = "return '<span style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
-themed_master_v6 = "return '<span class=\"dvs-dmr-room-label\" style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
-themed_display_v6 = "return '<span class=\"dvs-dmr-room-label\" style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';"
-themed_master = "return '<span class=\"dvs-dmr-room-label\" style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'.($connecting ? '<br/><span class=\"dvs-dmr-connection-state\" style=\"color:#b0b0b0;font-weight:normal;\">Connecting</span>' : '');"
-themed_display = "return '<span class=\"dvs-dmr-room-label\" style=\"color:#000000;font-weight:normal;\">Room</span><br/><span style=\"color:#b5651d;font-weight:bold;\">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'.($connecting ? '<br/><span class=\"dvs-dmr-connection-state\" style=\"color:#b0b0b0;font-weight:normal;\">Connecting</span>' : '');"
-current_master = text.count(themed_master) == 1
-current_display = text.count(themed_display) == 1
-v6_master = text.count(themed_master_v6) == 1
-v6_display = text.count(themed_display_v6) == 1
-if current_master and current_display:
-    pass
-elif v6_master and v6_display:
-    text = text.replace(themed_master_v6, themed_master, 1)
-    text = text.replace(themed_display_v6, themed_display, 1)
-elif text.count(plain_master) == 1 and text.count(plain_display) == 1:
-    text = text.replace(plain_master, themed_master, 1)
-    text = text.replace(plain_display, themed_display, 1)
-elif text.count(old_formatted_master) == 1 and text.count(old_formatted_display) == 1:
-    text = text.replace(old_formatted_master, themed_master, 1)
-    text = text.replace(old_formatted_display, themed_display, 1)
-else:
-    raise SystemExit('ERROR: DMR Room-label formatting is incomplete or ambiguous')
-
+        return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'.($connecting ? '<br/><span class="dvs-dmr-connection-state" style="color:#b0b0b0;font-weight:normal;">Connecting</span>' : '');
+}'''
+function_pattern = re.compile(r'(?ms)^function dvsButtonsDmrMasterDisplay\([^\n]*\) \{\n.*?^\}')
+function_matches = list(function_pattern.finditer(text))
+if len(function_matches) != 1:
+    raise SystemExit(f'ERROR: expected exactly one DMR Master display function; found {len(function_matches)}')
+existing_display_function = function_matches[0].group(0)
+if 'dvsButtonsDmrTalkgroup' not in existing_display_function or 'dvsButtonsDmrNetwork' not in existing_display_function or 'dvsButtonsDmrName' not in existing_display_function:
+    raise SystemExit('ERROR: DMR Master display function has an unsupported structure')
+text = text[:function_matches[0].start()] + new_display_function + text[function_matches[0].end():]
 legacy_conditions = ("strpos($dmrstatus, 'Closing')", "strpos($dmrstatus, 'Connection')")
 for legacy in legacy_conditions:
     count = text.count(legacy)
