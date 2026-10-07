@@ -65,7 +65,8 @@ function dvsButtonsDmrMasterDisplay($master, $abinfo) {
         if ($talkgroup === '') { return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars((string)$master, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'; }
         $name = dvsButtonsDmrName($network, $talkgroup);
         $display = ($name !== '') ? $name : 'TG '.$talkgroup;
-        return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';
+        $numberLine = ($name !== '') ? '<br/><span style="color:#b5651d;font-weight:bold;">(TG '.htmlspecialchars($talkgroup, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').')</span>' : '';
+        return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'.$numberLine;
 }
 
 '''

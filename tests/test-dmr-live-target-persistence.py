@@ -93,6 +93,7 @@ def main() -> None:
             assert "array('DMR', 'BM', 'TGIF', 'STFU')" not in upgraded
             assert "dvs-dmr-connection-state" in upgraded
             assert "dvsButtonsDmrMasterDisplay($dmrMasterHost, $abinfo, true)" in upgraded
+            assert "(TG '.htmlspecialchars($talkgroup" in upgraded
             assert "strpos($dmrstatus" not in upgraded
             assert ">Not Connected</span>" not in upgraded
             subprocess.run([sys.executable, "-c", code], env=environment, check=True, capture_output=True, text=True)

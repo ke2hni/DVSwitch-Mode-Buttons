@@ -76,11 +76,6 @@ if [[ "$mode" == BM || "$mode" == TGIF ]]; then
   chown root:root "$DMR_NETWORK_FILE"; chmod 644 "$DMR_NETWORK_FILE"
   printf '%s\n' "$mode" > "$DMR_CARD_MODE_FILE"
   chown root:root "$DMR_CARD_MODE_FILE"; chmod 644 "$DMR_CARD_MODE_FILE"
-elif [[ "$mode" == STFU ]]; then
-  printf '%s\n' BM > "$DMR_NETWORK_FILE"
-  chown root:root "$DMR_NETWORK_FILE"; chmod 644 "$DMR_NETWORK_FILE"
-  printf '%s\n' STFU > "$DMR_CARD_MODE_FILE"
-  chown root:root "$DMR_CARD_MODE_FILE"; chmod 644 "$DMR_CARD_MODE_FILE"
 fi
 if [[ -x /usr/local/sbin/dvswitch-mode-targets ]]; then
   target=$(/usr/local/sbin/dvswitch-mode-targets get "$mode" 2>/dev/null || true)

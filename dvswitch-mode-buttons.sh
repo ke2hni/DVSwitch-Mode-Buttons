@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test26"
+VERSION="1.0.0-test27"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -208,8 +208,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -525,7 +525,7 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->'
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->'
 owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
@@ -536,7 +536,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <section id="dvs-favorites" hidden aria-label="Mode favorites"><div class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div><label class="dvs-favorites-select-label" for="dvs-favorites-select" hidden>Favorite</label><select id="dvs-favorites-select" class="dvs-favorites-select" aria-label="Active mode favorite"><option value="">Select favorite</option></select><button type="button" class="button link dvs-favorites-edit">Edit</button>
@@ -564,7 +564,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test26 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test27 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -850,6 +850,7 @@ new_display_function = r'''function dvsButtonsDmrMasterDisplay($master, $abinfo,
         }
         $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);
         $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
+        $numberLine = '';
         if ($connecting && $talkgroup === '') { $talkgroup = dvsButtonsDmrSavedTalkgroup(); }
         if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }
         if ($talkgroup === '') {
@@ -857,8 +858,9 @@ new_display_function = r'''function dvsButtonsDmrMasterDisplay($master, $abinfo,
         } else {
                 $name = dvsButtonsDmrName($network, $talkgroup);
                 $display = ($name !== '') ? $name : 'TG '.$talkgroup;
+                if ($name !== '') { $numberLine = '<br/><span style="color:#b5651d;font-weight:bold;">(TG '.htmlspecialchars($talkgroup, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').')</span>'; }
         }
-        return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'.($connecting ? '<br/><span class="dvs-dmr-connection-state" style="color:#b0b0b0;font-weight:normal;">Connecting</span>' : '');
+        return '<span class="dvs-dmr-room-label" style="color:#000000;font-weight:normal;">Room</span><br/><span style="color:#b5651d;font-weight:bold;">'.htmlspecialchars($display, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>'.$numberLine.($connecting ? '<br/><span class="dvs-dmr-connection-state" style="color:#b0b0b0;font-weight:normal;">Connecting</span>' : '');
 }'''
 function_pattern = re.compile(r'(?ms)^function dvsButtonsDmrMasterDisplay\([^\n]*\) \{\n.*?^\}')
 function_matches = list(function_pattern.finditer(text))

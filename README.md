@@ -74,8 +74,10 @@ The BM/TGIF DMR Master card is self-contained and does not require the
 `DVSwitch-Mods` repository. STFU is not treated as a DMR Master network by
 this repository; its separate status and activity card is provided by the
 independently installable `dashboard-stfu-activity` component in DVSwitch-Mods.
-The BM and TGIF card displays the `Room` label above the current
-network/talkgroup name.
+The BM and TGIF card displays the `Room` label, the current network/talkgroup
+name in orange, and the `(TG number)` on a separate orange line below the
+name so long room labels do not push the card wider.
+Selecting STFU leaves the last BM/TGIF card selection intact.
 The label keeps its light-theme color in the standard dashboard. When the
 DVSwitch-Mods Dark Mode overlay is installed, its theme stylesheet changes the
 label to a readable light color; this works whether Dark Mode is installed
@@ -108,6 +110,9 @@ sudo ./dvswitch-mode-buttons.sh --check
 ```
 
 `--check` makes no changes. It validates prerequisites, checks that all files required by the bundled display-layout script are present, confirms the dashboard has either the original RX Monitor anchor or the supported DVSwitch-Mods relocated layout, checks the DMR card's connection-state patch target, and reports whether either network password in `var.txt` is missing or still the default. The tuner submits only validated IDs and invokes a dedicated helper with no command-line arguments; the helper reads the ID from standard input and runs `dvswitch.sh tune`. Favorites are filtered by the live selected mode. The editor's mode selector loads and saves each mode's own list; names and IDs are validated by a root-owned helper, and saves are atomic. For D-Star, YSF, P25, and NXDN, the tune confirmation and target persistence use DVSwitch's live mode when available, avoiding stale mode state after terminal mode changes. DMR submodes continue to use the saved Mode Buttons state. Version 1.0.0-test23 moves the existing RX Monitor button to the left side of the Favorites dropdown row, before Favorites, Edit, and Tune. Version 1.0.0-test24 bundles the existing responsive display-layout script and applies it during option 1; the installer records only layout substitutions it introduced, and uninstall reverses those substitutions without restoring whole dashboard snapshots. Test25 invokes the helper through Python and the layout installer through Bash so installation does not depend on executable bits surviving ZIP extraction. Test26 upgrades the BM/TGIF DMR Master card by recognizing its marked helper functions structurally, so supported v7 card formatting variants migrate without touching the separate STFU card. Favorites remain mode-specific and the editor can switch modes. It upgrades prior test8–test25 controls blocks. The DMR card remains populated with the current talkgroup while BM/TGIF reconnect and labels the network `Connecting` until MMDVM_Bridge reports a successful login; it also uses `$dmrstat` for the `Closing` and `Connection` checks. `--install` explicitly runs the same install/upgrade action as menu option 1. `--uninstall` explicitly runs menu option 2. Installation validates PHP syntax and restarts Apache. The install-order regression tests are `tests/test-rx-monitor-moved-anchor.py` and `tests/test_display_layout_integration.py`.
+
+Version 1.0.0-test27 puts the current BM/TGIF talkgroup number on its own line
+beneath the friendly room name.
 
 ## Uninstall
 
