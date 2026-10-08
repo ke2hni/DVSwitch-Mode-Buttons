@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory() as directory:
     status = Path(directory) / "status.php"
     for version, row, extras in (
         ("1", NOT_CONNECTED, ""),
-        ("9", CONNECTING, "dvs-dmr-connection-state dvs-dmr-connection-state"),
+        ("9", CONNECTING, "dvs-dmr-connection-state"),
     ):
         status.write_text(STATUS.format(version=version, row=row, extras=extras), encoding="utf-8")
         result = subprocess.run([sys.executable, "-c", CHECK, str(status)], text=True, capture_output=True)
@@ -52,6 +52,16 @@ with tempfile.TemporaryDirectory() as directory:
     status.write_text(STATUS.format(version="9", row=NOT_CONNECTED, extras=""), encoding="utf-8")
     result = subprocess.run([sys.executable, "-c", CHECK, str(status)], text=True, capture_output=True)
     assert result.returncode != 0, "v9 card with the wrong connection row was accepted"
+    assert "state-aware DMR connecting card structure is incomplete" in result.stderr
+
+    status.write_text(
+        STATUS.format(version="9", row=CONNECTING, extras="dvs-dmr-connection-state").replace(
+            "dvs-dmr-connection-state", "missing-connection-state"
+        ),
+        encoding="utf-8",
+    )
+    result = subprocess.run([sys.executable, "-c", CHECK, str(status)], text=True, capture_output=True)
+    assert result.returncode != 0, "v9 card without its Connecting state class was accepted"
     assert "state-aware DMR connecting card structure is incomplete" in result.stderr
 
 print("PASS: DMR card check accepts stock v1 and current v9 rows, and rejects mismatched v9 structure")
