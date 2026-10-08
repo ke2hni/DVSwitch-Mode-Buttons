@@ -28,6 +28,15 @@ if op == 'save':
     fd,tmp=tempfile.mkstemp(dir=os.path.dirname(path)); os.close(fd)
     with open(tmp,'w',encoding='utf-8') as f: json.dump(data,f,indent=2); f.write('\n')
     os.chmod(tmp,0o600); os.replace(tmp,path); print(f'PASS: saved {mode} target: {target}')
+    if mode == 'STFU':
+        fd, public_tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.stfu-target.')
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                f.write(target + '\\n')
+            os.chmod(public_tmp, 0o644)
+            os.replace(public_tmp, os.path.join(os.path.dirname(path), 'stfu-target'))
+        finally:
+            if os.path.exists(public_tmp): os.unlink(public_tmp)
 else: print(data[mode]['target'])
 PY
 if [[ "$1" == save && ( "$mode" == BM || "$mode" == TGIF ) && "${target:-}" =~ ^[0-9]+$ ]]; then

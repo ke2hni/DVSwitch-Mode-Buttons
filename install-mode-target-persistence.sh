@@ -28,6 +28,15 @@ cp -a "$MODE_HELPER" "$BACKUP_DIR/dvswitch-mode-buttons.$stamp" 2>/dev/null || t
 cp -a "$DMR_HELPER" "$BACKUP_DIR/dvswitch-dmr-network.$stamp" 2>/dev/null || true
 install -o root -g root -m 755 dvswitch-mode-targets "$TARGET_HELPER"
 install -o root -g root -m 755 dvswitch-mode-buttons "$MODE_HELPER"
+# Publish the retained STFU target for the independent dashboard card. The
+# canonical per-mode JSON remains root-only; this one value is read-only to PHP.
+saved_stfu_target=$("$TARGET_HELPER" get STFU)
+[[ "$saved_stfu_target" =~ ^[A-Za-z0-9_-]{1,32}$ ]] || saved_stfu_target=''
+stfu_tmp=$(mktemp "$STATE_DIR/.stfu-target.XXXXXX")
+printf '%s\n' "$saved_stfu_target" > "$stfu_tmp"
+chown root:root "$stfu_tmp"
+chmod 644 "$stfu_tmp"
+mv -f "$stfu_tmp" "$STATE_DIR/stfu-target"
 # Keep the historical command path as a compatibility symlink to the unified mode helper.
 link_tmp="${DMR_HELPER}.tmp.$$"
 rm -f "$link_tmp"
