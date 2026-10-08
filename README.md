@@ -127,7 +127,7 @@ currently selected mode. Nodes without the STFU activity card are unaffected.
 Version 1.0.0-test31 lets `--check` recognize the current v9 DMR card's
 state-aware Connecting row, as well as the older stock Not Connected row. Version
 1.0.0-test32 fixes the v9 check to match the single Connecting-state class the
-card emits. It also keeps STFU selected during dashboard refresh when
+card emits. Version 1.0.0-test33 fixes the STFU target snapshot newline so DMR tuning cannot overwrite or mask the separately retained STFU target. It also keeps STFU selected during dashboard refresh when
 Analog_Bridge reports its generic DMR mode, instead of highlighting BM/TGIF.
 
 ## Uninstall
