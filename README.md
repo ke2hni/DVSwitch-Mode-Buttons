@@ -124,6 +124,8 @@ Version 1.0.0-test30 publishes the saved STFU target as a read-only dashboard
 snapshot while keeping the canonical per-mode target file root-only. This lets
 DVSwitch-Mods show the remembered STFU room after reboot when STFU is not the
 currently selected mode. Nodes without the STFU activity card are unaffected.
+Version 1.0.0-test31 lets `--check` recognize the current v9 DMR card's
+state-aware Connecting row, as well as the older stock Not Connected row.
 
 ## Uninstall
 
