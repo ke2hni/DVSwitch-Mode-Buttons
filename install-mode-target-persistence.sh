@@ -164,7 +164,8 @@ for path in sys.argv[1:]:
     nl = nl.decode()
     text = raw.replace(b'\r\n', b'\n').decode()
     if path.endswith('dvswitch-mode-buttons'):
-        if b'dvswitch-mode-targets get "$mode"' in raw:
+        if (b'dvswitch-mode-targets get "$mode"' in raw
+                or b'TARGET_HELPER get "$mode"' in raw):
             continue
         old = "printf '%s\\n' \"$mode\" > \"$STATE_FILE\"\nchown root:root \"$STATE_FILE\"\nchmod 600 \"$STATE_FILE\"\necho \"PASS: DVSwitch mode selected: $mode\""
         new = old + '''

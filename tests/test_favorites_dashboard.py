@@ -29,7 +29,7 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('len(items) > 30', HELPER)
 
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test35"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test36"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)

@@ -140,6 +140,10 @@ talkgroup when that mode has no saved target yet, and saves that default for
 later returns to the same network. An existing mode-specific target takes
 priority.
 
+Version 1.0.0-test36 updates the target-persistence installer to recognize the
+test35 helper's shared target-helper command, so upgrades can continue without
+trying to apply an obsolete patch a second time.
+
 ## Uninstall
 
 ```bash
