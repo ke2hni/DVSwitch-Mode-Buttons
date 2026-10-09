@@ -107,6 +107,12 @@ if [[ -x "$TARGET_HELPER" ]]; then
       target=''
     fi
   fi
+  if [[ ( "$mode" == BM || "$mode" == TGIF ) && "$target" =~ ^[0-9]+$ ]]; then
+    pending_tmp=$(mktemp "$STATE_DIR/.dmr-tune-pending.XXXXXX") || die 'could not create pending DMR target state'
+    printf '%s %s %s\n' "$mode" "$target" "$(date +%s)" > "$pending_tmp"
+    chown root:www-data "$pending_tmp"; chmod 644 "$pending_tmp"
+    mv -f "$pending_tmp" "$STATE_DIR/dmr-tune-pending"
+  fi
   [[ -z "$target" ]] || "$MODE_CMD" tune "$target" || true
 fi
 echo "PASS: DVSwitch mode selected: $mode"

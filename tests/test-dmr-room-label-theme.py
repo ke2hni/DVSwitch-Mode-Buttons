@@ -23,7 +23,7 @@ class DmrRoomLabelThemeTest(unittest.TestCase):
         self.assertIn("last-dmr-talkgroup", INSTALLER)
         self.assertIn("display v9", INSTALLER)
         self.assertIn("$isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);", INSTALLER)
-        self.assertIn("if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }", INSTALLER)
+        self.assertIn("if (!$connecting && $isDmrMode && $talkgroup !== '' && ($pendingTarget === '' || $observedTalkgroup === $pendingTarget)) { dvsButtonsDmrRememberTalkgroup($talkgroup); }", INSTALLER)
         heading = INSTALLER.split("new_heading_function = r'''", 1)[1].split("'''", 1)[0]
         self.assertNotIn("STFU", heading)
         display = INSTALLER.split("new_display_function = r'''", 1)[1].split("'''", 1)[0]

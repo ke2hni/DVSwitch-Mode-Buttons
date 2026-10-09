@@ -88,6 +88,8 @@ def main() -> None:
             upgraded = candidate.read_text()
             assert "standalone DMR Master display v9" in upgraded
             assert "function dvsButtonsDmrRememberTalkgroup(" in upgraded
+            assert "function dvsButtonsDmrPendingTarget(" in upgraded
+            assert "dvsButtonsDmrPendingTarget()" in upgraded
             assert "dvsButtonsDmrMasterDisplay($master, $abinfo, $connecting = false)" in upgraded
             assert "in_array($liveMode, array('DMR', 'BM', 'TGIF'), true)" in upgraded
             current_mode = upgraded.split("function dvsButtonsDmrCurrentMode(", 1)[1].split("\n}", 1)[0]
@@ -112,6 +114,21 @@ def main() -> None:
                 php_program = "<?php\n" + helper_region + f"\necho dvsButtonsDmrCurrentMode(array('tlv' => array('ambe_mode' => 'DMR')), {str(state_file)!r});\n?>"
                 result = subprocess.run(["php"], input=php_program, text=True, capture_output=True, check=True)
                 assert result.stdout.endswith("STFU"), f"DMR ABInfo overrode selected STFU mode: {result.stdout!r}"
+
+                pending_file = Path(directory) / f"pending-target-{index}"
+                saved_file = Path(directory) / f"saved-target-{index}"
+                pending_region = helper_region.replace(
+                    "/var/lib/dvswitch-mode-buttons/current-mode", str(state_file)
+                ).replace(
+                    "/var/lib/dvswitch-mode-buttons/dmr-tune-pending", str(pending_file)
+                ).replace(
+                    "/var/lib/dvswitch-mode-buttons/last-dmr-talkgroup", str(saved_file)
+                )
+                pending_program = "<?php\n" + pending_region + f"\nfile_put_contents({str(state_file)!r}, 'TGIF');\nfile_put_contents({str(saved_file)!r}, '12345');\nfile_put_contents({str(pending_file)!r}, 'TGIF 12345 '.time());\necho dvsButtonsDmrMasterDisplay('tgif.network', array('tlv' => array('ambe_mode' => 'DMR'), 'last_tune' => '7941', 'digital' => array('tg' => '7941')));\n?>"
+                result = subprocess.run(["php"], input=pending_program, text=True, capture_output=True, check=True)
+                assert "TG 12345" in result.stdout and "7941" not in result.stdout, (
+                    f"DMR card displayed stale cross-mode target during tune transition: {result.stdout!r}"
+                )
 
     print("PASS: DMR card upgrades to v9, preserves BM/TGIF state during STFU, and stays idempotent")
 

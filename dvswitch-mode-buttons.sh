@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="1.0.0-test36"
+VERSION="1.0.0-test37"
 INI="/opt/MMDVM_Bridge/MMDVM_Bridge.ini"
 ANALOG_INI="/opt/Analog_Bridge/Analog_Bridge.ini"
 VAR="/var/lib/dvswitch/dvs/var.txt"
@@ -65,6 +65,7 @@ uninstall(){
   backup "$LAYOUT_STATE"
   backup /opt/MMDVM_Bridge/dvswitch.sh
   backup /var/lib/dvswitch-mode-buttons/last-dmr-talkgroup
+  backup /var/lib/dvswitch-mode-buttons/dmr-tune-pending
   backup "$DMR_HELPER"
   python3 ./dvswitch-mode-layout-state check-restore "$LAYOUT_STATE"
   python3 - "$STATUS_TARGET" /opt/MMDVM_Bridge/dvswitch.sh "$TARGET" <<'PY_BUTTONS_UNINSTALL' || die 'uninstall structure was unsupported; installed controls and helpers were left in place'
@@ -208,8 +209,8 @@ BRIDGE_ORIGINAL = '''    if [ $# -eq 0 ]; then
     else
         remoteControlCommand "txTg=$1"
     fi'''
-INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test36 -->'
-INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36) -->')
+INDEX_MARKER = '<!-- DVSwitch-Mode-Buttons 1.0.0-test37 -->'
+INDEX_MARKERS = re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37) -->')
 
 
 class UnsafeStructure(RuntimeError):
@@ -530,8 +531,8 @@ SUDO
   python3 - "$TARGET" <<'PY'
 import os, re, shutil, sys, tempfile
 path=sys.argv[1]; text=open(path, encoding='utf-8').read()
-marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test36 -->'
-owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36) -->')
+marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test37 -->'
+owned_marker=re.compile(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37) -->')
 owned_matches=list(owned_marker.finditer(text))
 if len(owned_matches) > 1: raise SystemExit('ERROR: duplicate owned mode-button markers found')
 if owned_matches:
@@ -541,7 +542,7 @@ if owned_matches:
     end += len('</script>')
     text=text[:start]+text[end:]
 if marker not in text:
-    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test36 -->
+    block='''<!-- DVSwitch-Mode-Buttons 1.0.0-test37 -->
 <div id="dvs-mode-buttons" aria-label="Select Mode"><div class="dvs-mode-buttons-title">Select Mode</div>
 <button type="button" class="button link" data-mode="BM">BM</button><button type="button" class="button link" data-mode="TGIF">TGIF</button><button type="button" class="button link" data-mode="STFU">STFU</button><button type="button" class="button link" data-mode="YSF">YSF</button><button type="button" class="button link" data-mode="P25">P25</button><button type="button" class="button link" data-mode="NXDN">NXDN</button><button type="button" class="button link" data-mode="DSTAR">D-Star</button></div>
 <section id="dvs-favorites" hidden aria-label="Mode favorites"><div class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div><label class="dvs-favorites-select-label" for="dvs-favorites-select" hidden>Favorite</label><select id="dvs-favorites-select" class="dvs-favorites-select" aria-label="Active mode favorite"><option value="">Select favorite</option></select><button type="button" class="button link dvs-favorites-edit">Edit</button>
@@ -569,7 +570,7 @@ if marker not in text:
     with os.fdopen(fd,'w',encoding='utf-8',newline='') as f: f.write(text)
     os.chown(tmp,st.st_uid,st.st_gid); os.chmod(tmp,st.st_mode & 0o7777); os.replace(tmp,path)
 PY
-  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test36 -->' "$TARGET" || die 'dashboard controls block was not installed'
+  grep -qF '<!-- DVSwitch-Mode-Buttons 1.0.0-test37 -->' "$TARGET" || die 'dashboard controls block was not installed'
 }
 
 network="$(awk '
@@ -598,7 +599,7 @@ import re, sys
 from pathlib import Path
 path = Path(sys.argv[1])
 text = path.read_text(encoding='utf-8')
-button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36) -->', text))
+button_markers = list(re.finditer(r'<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(?:8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37) -->', text))
 if len(button_markers) > 1:
     raise SystemExit('ERROR: duplicate Mode Buttons blocks found')
 if button_markers:
@@ -661,7 +662,7 @@ PY_DMR_CARD_CHECK
   exit 0
 fi
 
-if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$FAVORITES_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36) -->' "$TARGET"; then
+if [[ -e "$MODE_HELPER" || -e "$TARGET_HELPER" || -e "$TUNE_HELPER" || -e "$FAVORITES_HELPER" || -e "$ENDPOINT" || -e "$SUDOERS" ]] || grep -Eq '<!-- DVSwitch-Mode-Buttons 1\.0\.0-test(8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37) -->' "$TARGET"; then
   echo "Existing installation detected; applying the current upgrade."
 else
   echo "No existing installation detected; starting installation."
@@ -868,6 +869,26 @@ else:
     anchor = 'function dvsButtonsDmrName('
     if text.count(anchor) != 1: raise SystemExit('ERROR: DMR name helper anchor is ambiguous during saved talkgroup upgrade')
     text = text.replace(anchor, saved_talkgroup_function+'\n\n'+anchor, 1)
+pending_target_function = r'''function dvsButtonsDmrPendingTarget() {
+        $pendingFile = '/var/lib/dvswitch-mode-buttons/dmr-tune-pending';
+        $modeFile = '/var/lib/dvswitch-mode-buttons/current-mode';
+        if (!is_readable($pendingFile) || !is_readable($modeFile)) { return ''; }
+        $parts = preg_split('/\s+/', trim((string)file_get_contents($pendingFile)));
+        $mode = strtoupper(trim((string)file_get_contents($modeFile)));
+        if (count($parts) !== 3 || !in_array($mode, array('BM', 'TGIF'), true) || strtoupper($parts[0]) !== $mode) { return ''; }
+        if (!preg_match('/^[0-9]+$/', $parts[1]) || !preg_match('/^[0-9]+$/', $parts[2])) { return ''; }
+        $age = time() - (int)$parts[2];
+        return ($age >= 0 && $age <= 12) ? $parts[1] : '';
+}'''
+pending_target_matches = list(re.finditer(r'(?ms)^function dvsButtonsDmrPendingTarget\([^\n]*\) \{\n.*?^\}', text))
+if len(pending_target_matches) > 1:
+    raise SystemExit('ERROR: duplicate pending DMR target helpers found')
+if pending_target_matches:
+    text = text[:pending_target_matches[0].start()] + pending_target_function + text[pending_target_matches[0].end():]
+else:
+    saved_anchor = 'function dvsButtonsDmrSavedTalkgroup() {'
+    if text.count(saved_anchor) != 1: raise SystemExit('ERROR: saved DMR talkgroup helper anchor is ambiguous during pending-target upgrade')
+    text = text.replace(saved_anchor, pending_target_function+'\n\n'+saved_anchor, 1)
 remember_helper = r'''function dvsButtonsDmrRememberTalkgroup($talkgroup) {
         $file = '/var/lib/dvswitch-mode-buttons/last-dmr-talkgroup';
         $talkgroup = trim((string)$talkgroup);
@@ -905,10 +926,12 @@ new_display_function = r'''function dvsButtonsDmrMasterDisplay($master, $abinfo,
                 if ($network === '') { $network = dvsButtonsDmrNetwork($master); }
         }
         $isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF'), true);
-        $talkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : dvsButtonsDmrSavedTalkgroup();
+        $observedTalkgroup = $isDmrMode ? dvsButtonsDmrTalkgroup($abinfo) : '';
+        $pendingTarget = $isDmrMode ? dvsButtonsDmrPendingTarget() : '';
+        $talkgroup = ($pendingTarget !== '') ? $pendingTarget : ($isDmrMode ? $observedTalkgroup : dvsButtonsDmrSavedTalkgroup());
         $numberLine = '';
         if ($connecting && $talkgroup === '') { $talkgroup = dvsButtonsDmrSavedTalkgroup(); }
-        if (!$connecting && $isDmrMode && $talkgroup !== '') { dvsButtonsDmrRememberTalkgroup($talkgroup); }
+        if (!$connecting && $isDmrMode && $talkgroup !== '' && ($pendingTarget === '' || $observedTalkgroup === $pendingTarget)) { dvsButtonsDmrRememberTalkgroup($talkgroup); }
         if ($talkgroup === '') {
                 $display = (string)$master;
         } else {
@@ -940,7 +963,7 @@ if text.count(not_connected_row) == 1:
 elif text.count(connecting_row) != 1:
     raise SystemExit('ERROR: DMR Not Connected row is unsupported or ambiguous')
 
-if 'standalone DMR Master display v9' not in text or 'dvsButtonsDmrSavedCardMode' not in text or 'dvsButtonsDmrSavedTalkgroup' not in text or 'dvsButtonsDmrRememberTalkgroup' not in text or 'dvs-dmr-connection-state' not in text or 'selectedModeFile' not in text:
+if 'standalone DMR Master display v9' not in text or 'dvsButtonsDmrSavedCardMode' not in text or 'dvsButtonsDmrSavedTalkgroup' not in text or 'dvsButtonsDmrRememberTalkgroup' not in text or 'dvsButtonsDmrPendingTarget' not in text or 'dvs-dmr-connection-state' not in text or 'selectedModeFile' not in text:
     raise SystemExit('ERROR: state-aware DMR card upgrade was not applied')
 if "return 'DMR STFU Master';" in text or "$isDmrMode = in_array($liveMode, array('DMR', 'BM', 'TGIF', 'STFU'), true);" in text:
     raise SystemExit('ERROR: STFU is still included in the DMR Master card')

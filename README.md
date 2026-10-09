@@ -144,6 +144,11 @@ Version 1.0.0-test36 updates the target-persistence installer to recognize the
 test35 helper's shared target-helper command, so upgrades can continue without
 trying to apply an obsolete patch a second time.
 
+Version 1.0.0-test37 records the selected BM/TGIF target briefly while the
+bridge's live ABInfo catches up. During that transition, the DMR Master card
+shows the selected DMR target instead of a stale talkgroup from the mode that
+was active just before the switch.
+
 ## Uninstall
 
 ```bash
