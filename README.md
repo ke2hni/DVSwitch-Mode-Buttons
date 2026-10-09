@@ -130,6 +130,11 @@ state-aware Connecting row, as well as the older stock Not Connected row. Versio
 card emits. Version 1.0.0-test33 fixes the STFU target snapshot newline so DMR tuning cannot overwrite or mask the separately retained STFU target. It also keeps STFU selected during dashboard refresh when
 Analog_Bridge reports its generic DMR mode, instead of highlighting BM/TGIF.
 
+Version 1.0.0-test34 skips BM/TGIF preset copies and bridge service restarts
+when the selected network is already active and both live bridge INI files
+match that network's saved presets. It still selects DMR mode and restores the
+saved target. If either INI differs, the existing full switch path runs.
+
 ## Uninstall
 
 ```bash

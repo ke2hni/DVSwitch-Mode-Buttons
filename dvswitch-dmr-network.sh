@@ -20,6 +20,21 @@ analog_preset="$PRESET_DIR/Analog_Bridge.$network.ini"
 [[ -f "$analog_preset" ]] || die "$network Analog_Bridge preset is not installed"
 [[ -x "$MODE_CMD" ]] || die "missing executable $MODE_CMD"
 
+address="$(awk '
+  /^\[DMR Network\]/{insec=1;next} /^\[/{insec=0}
+  insec && /^[[:space:]]*Address[[:space:]]*=/{sub(/^[^=]*=/,""); gsub(/[[:space:]]/,""); print; exit}
+' "$INI")"
+case "$network:$address" in
+  BM:*brandmeister*|BM:*repeater.net|BM:*3102*|BM:*3104*|TGIF:*tgif*) ;;
+  *) address="";;
+esac
+if [[ -n "$address" ]] && cmp -s "$INI" "$preset" && cmp -s "$ANALOG_INI" "$analog_preset"; then
+  "$MODE_CMD" mode DMR >/tmp/dvswitch-mode-buttons-dmr.out 2>&1 || { cat /tmp/dvswitch-mode-buttons-dmr.out; die "DVSwitch DMR mode command failed"; }
+  systemctl is-active --quiet analog_bridge mmdvm_bridge || die "DVSwitch service verification failed"
+  echo "PASS: DMR network is already $network ($address); skipped preset copies and service restart."
+  exit 0
+fi
+
 owner="$(stat -c '%u' "$INI")"
 group="$(stat -c '%g' "$INI")"
 perms="$(stat -c '%a' "$INI")"
