@@ -124,10 +124,10 @@ def main() -> None:
                 ).replace(
                     "/var/lib/dvswitch-mode-buttons/last-dmr-talkgroup", str(saved_file)
                 )
-                pending_program = "<?php\n" + pending_region + f"\nfile_put_contents({str(state_file)!r}, 'TGIF');\nfile_put_contents({str(saved_file)!r}, '12345');\nfile_put_contents({str(pending_file)!r}, 'TGIF 12345 '.time());\necho dvsButtonsDmrMasterDisplay('tgif.network', array('tlv' => array('ambe_mode' => 'DMR'), 'last_tune' => '7941', 'digital' => array('tg' => '7941')));\n?>"
+                pending_program = "<?php\n" + pending_region + f"\nfile_put_contents({str(state_file)!r}, 'P25');\nfile_put_contents({str(saved_file)!r}, '7941');\nfile_put_contents({str(pending_file)!r}, 'TGIF 12345 '.time());\necho dvsButtonsDmrMasterDisplay('tgif.network', array('tlv' => array('ambe_mode' => 'DMR'), 'last_tune' => '7941', 'digital' => array('tg' => '7941')));\n?>"
                 result = subprocess.run(["php"], input=pending_program, text=True, capture_output=True, check=True)
                 assert "TG 12345" in result.stdout and "7941" not in result.stdout, (
-                    f"DMR card displayed stale cross-mode target during tune transition: {result.stdout!r}"
+                    f"DMR card rejected pending TGIF target while saved mode was still P25: {result.stdout!r}"
                 )
 
     print("PASS: DMR card upgrades to v9, preserves BM/TGIF state during STFU, and stays idempotent")

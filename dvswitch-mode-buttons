@@ -79,23 +79,12 @@ switch_dmr_network(){
 [[ $EUID -eq 0 ]] || die 'run with sudo'
 [[ $# -eq 1 ]] || die 'usage: BM|TGIF|STFU|YSF|P25|NXDN|DSTAR'
 mode="${1^^}"
-case "$mode" in
-  BM|TGIF) switch_dmr_network "$mode" ;;
-  DSTAR|STFU|YSF|P25|NXDN) [[ -x "$MODE_CMD" ]] || die "missing $MODE_CMD"; "$MODE_CMD" mode "$mode" || exit 1 ;;
-  *) die "unsupported mode: $1" ;;
-esac
 install -d -m 755 -o root -g root "$STATE_DIR"
-printf '%s\n' "$mode" > "$STATE_FILE"
-chown root:root "$STATE_FILE"; chmod 644 "$STATE_FILE"
-if [[ "$mode" == BM || "$mode" == TGIF ]]; then
-  printf '%s\n' "$mode" > "$DMR_NETWORK_FILE"
-  chown root:root "$DMR_NETWORK_FILE"; chmod 644 "$DMR_NETWORK_FILE"
-  printf '%s\n' "$mode" > "$DMR_CARD_MODE_FILE"
-  chown root:root "$DMR_CARD_MODE_FILE"; chmod 644 "$DMR_CARD_MODE_FILE"
-fi
-if [[ -x "$TARGET_HELPER" ]]; then
+
+target=''
+if [[ ( "$mode" == BM || "$mode" == TGIF ) && -x "$TARGET_HELPER" ]]; then
   target=$($TARGET_HELPER get "$mode" 2>/dev/null || true)
-  if [[ -z "$target" && ( "$mode" == BM || "$mode" == TGIF ) ]]; then
+  if [[ -z "$target" ]]; then
     preset="$PRESET_DIR/Analog_Bridge.$mode.ini"
     target=$(awk '
       /^\[AMBE_AUDIO\]/{insec=1;next} /^\[/{insec=0}
@@ -107,11 +96,34 @@ if [[ -x "$TARGET_HELPER" ]]; then
       target=''
     fi
   fi
-  if [[ ( "$mode" == BM || "$mode" == TGIF ) && "$target" =~ ^[0-9]+$ ]]; then
+  # Publish the intended target before mode DMR can make ABInfo look like DMR
+  # while current-mode still contains the previous mode (for example P25).
+  if [[ "$target" =~ ^[0-9]+$ ]]; then
     pending_tmp=$(mktemp "$STATE_DIR/.dmr-tune-pending.XXXXXX") || die 'could not create pending DMR target state'
     printf '%s %s %s\n' "$mode" "$target" "$(date +%s)" > "$pending_tmp"
     chown root:www-data "$pending_tmp"; chmod 644 "$pending_tmp"
     mv -f "$pending_tmp" "$STATE_DIR/dmr-tune-pending"
+  fi
+else
+  # A newly selected non-DMR mode must not inherit a still-live DMR marker.
+  rm -f "$STATE_DIR/dmr-tune-pending"
+fi
+case "$mode" in
+  BM|TGIF) switch_dmr_network "$mode" ;;
+  DSTAR|STFU|YSF|P25|NXDN) [[ -x "$MODE_CMD" ]] || die "missing $MODE_CMD"; "$MODE_CMD" mode "$mode" || exit 1 ;;
+  *) die "unsupported mode: $1" ;;
+esac
+printf '%s\n' "$mode" > "$STATE_FILE"
+chown root:root "$STATE_FILE"; chmod 644 "$STATE_FILE"
+if [[ "$mode" == BM || "$mode" == TGIF ]]; then
+  printf '%s\n' "$mode" > "$DMR_NETWORK_FILE"
+  chown root:root "$DMR_NETWORK_FILE"; chmod 644 "$DMR_NETWORK_FILE"
+  printf '%s\n' "$mode" > "$DMR_CARD_MODE_FILE"
+  chown root:root "$DMR_CARD_MODE_FILE"; chmod 644 "$DMR_CARD_MODE_FILE"
+fi
+if [[ -x "$TARGET_HELPER" ]]; then
+  if [[ "$mode" != BM && "$mode" != TGIF ]]; then
+    target=$($TARGET_HELPER get "$mode" 2>/dev/null || true)
   fi
   [[ -z "$target" ]] || "$MODE_CMD" tune "$target" || true
 fi

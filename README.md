@@ -149,6 +149,11 @@ bridge's live ABInfo catches up. During that transition, the DMR Master card
 shows the selected DMR target instead of a stale talkgroup from the mode that
 was active just before the switch.
 
+Version 1.0.0-test38 writes the selected BM/TGIF target before issuing the DMR
+mode command. The DMR Master card honors that short-lived target while the
+previous mode is still recorded, avoiding a stale cross-mode talkgroup flash
+during the transition.
+
 ## Uninstall
 
 ```bash
