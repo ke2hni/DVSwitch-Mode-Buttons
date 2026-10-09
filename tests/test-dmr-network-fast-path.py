@@ -30,6 +30,14 @@ def main() -> None:
         systemctl = bin_dir / "systemctl"
         systemctl.write_text("#!/bin/sh\nprintf 'systemctl %s\\n' \"$*\" >> \"$CALL_LOG\"\n", encoding="utf-8")
         systemctl.chmod(0o755)
+        target_helper = root / "bin/dvswitch-mode-targets"
+        target_helper.write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = get ]; then cat \"$TARGET_STATE\" 2>/dev/null || true; "
+            "else printf '%s\\n' \"$3\" > \"$TARGET_STATE\"; fi\n",
+            encoding="utf-8",
+        )
+        target_helper.chmod(0o755)
 
         helper = root / "dvswitch-mode-buttons"
         helper.write_text(SOURCE.replace(
@@ -46,11 +54,15 @@ def main() -> None:
         ).replace(
             "DMR_HISTORY_WRITER=/usr/local/sbin/dvswitch-mods-record-dmr-network",
             f"DMR_HISTORY_WRITER={root}/missing-history-writer",
+        ).replace(
+            "TARGET_HELPER=/usr/local/sbin/dvswitch-mode-targets",
+            f"TARGET_HELPER={target_helper}",
         ), encoding="utf-8")
         helper.chmod(0o755)
 
         env = os.environ.copy()
-        env.update(PATH=f"{bin_dir}:{env['PATH']}", CALL_LOG=str(log))
+        target_state = root / "target-state"
+        env.update(PATH=f"{bin_dir}:{env['PATH']}", CALL_LOG=str(log), TARGET_STATE=str(target_state))
         preset_dir = root / "etc/dvswitch-mode-buttons/dmr-presets"
         mmdvm = "[DMR Network]\nAddress=tgif.network\nPort=62030\nPassword=secret\n"
         analog = "[AMBE_AUDIO]\ntxTg=12345\n"
@@ -65,8 +77,16 @@ def main() -> None:
         result = subprocess.run([str(helper), "TGIF"], env=env, text=True, capture_output=True)
         assert result.returncode == 0, result.stderr
         calls = log.read_text(encoding="utf-8").splitlines()
-        assert calls == ["mode mode DMR", "systemctl is-active --quiet analog_bridge mmdvm_bridge"], calls
+        assert calls == ["mode mode DMR", "systemctl is-active --quiet analog_bridge mmdvm_bridge", "mode tune 12345"], calls
         assert "skipped preset copies and service restart" in result.stdout
+        assert target_state.read_text(encoding="utf-8").strip() == "12345"
+
+        # With a saved TGIF target, preserve it instead of using the preset default.
+        log.write_text("", encoding="utf-8")
+        target_state.write_text("98765\n", encoding="utf-8")
+        result = subprocess.run([str(helper), "TGIF"], env=env, text=True, capture_output=True)
+        assert result.returncode == 0, result.stderr
+        assert "mode tune 98765" in log.read_text(encoding="utf-8").splitlines()
 
         # A differing Analog_Bridge file still takes the established full path.
         log.write_text("", encoding="utf-8")

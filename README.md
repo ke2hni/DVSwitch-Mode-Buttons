@@ -135,6 +135,11 @@ when the selected network is already active and both live bridge INI files
 match that network's saved presets. It still selects DMR mode and restores the
 saved target. If either INI differs, the existing full switch path runs.
 
+Version 1.0.0-test35 uses the selected BM/TGIF network's Analog_Bridge preset
+talkgroup when that mode has no saved target yet, and saves that default for
+later returns to the same network. An existing mode-specific target takes
+priority.
+
 ## Uninstall
 
 ```bash
