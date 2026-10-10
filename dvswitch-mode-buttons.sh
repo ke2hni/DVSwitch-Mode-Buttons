@@ -432,6 +432,19 @@ if (isset($_GET['targetNames'])) {
         $file = ($mode === 'TGIF') ? '/var/lib/mmdvm/TGList_TGIF.txt' : '/var/lib/mmdvm/TGList_BM.txt';
     } elseif ($mode === 'STFU') {
         $selected = is_readable('/var/lib/dvswitch-mode-buttons/last-dmr-network') ? strtoupper(trim((string)file_get_contents('/var/lib/dvswitch-mode-buttons/last-dmr-network'))) : '';
+        if ($selected !== 'BM' && $selected !== 'TGIF') {
+            $address = '';
+            $ini = '/opt/MMDVM_Bridge/MMDVM_Bridge.ini';
+            if (is_readable($ini)) {
+                $inNetwork = false;
+                foreach (file($ini, FILE_IGNORE_NEW_LINES) ?: array() as $line) {
+                    if (trim($line) === '[DMR Network]') { $inNetwork = true; continue; }
+                    if ($inNetwork && preg_match('/^\s*\[/', $line)) break;
+                    if ($inNetwork && preg_match('/^\s*Address\s*=\s*(\S+)/i', $line, $match)) { $address = $match[1]; break; }
+                }
+            }
+            $selected = (stripos($address, 'tgif') !== false) ? 'TGIF' : 'BM';
+        }
         $file = ($selected === 'TGIF') ? '/var/lib/mmdvm/TGList_TGIF.txt' : '/var/lib/mmdvm/TGList_BM.txt';
     } else {
         $file = '';

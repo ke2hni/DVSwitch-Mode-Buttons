@@ -37,6 +37,8 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("$mode.'Hosts.json'", ENDPOINT)
         self.assertIn("array('name', 'sponsor')", ENDPOINT)
         self.assertIn("last-dmr-network", ENDPOINT)
+        self.assertIn("/opt/MMDVM_Bridge/MMDVM_Bridge.ini", ENDPOINT)
+        self.assertIn("stripos($address, 'tgif')", ENDPOINT)
         self.assertNotIn('DSTARHosts', ENDPOINT)
 
     def test_editor_save_is_server_validated_and_uses_root_helper(self):
