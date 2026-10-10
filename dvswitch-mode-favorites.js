@@ -158,10 +158,17 @@
         } catch (error) {
           status.textContent = error.message;
         }
+        if (activeMode === 'DSTAR' && !friendlyName) {
+          const dstarTarget = target.toUpperCase();
+          const match = dstarTarget.match(/^(REF|XRF|DCS|XLX)([A-Z0-9]{3})([A-Z])L?$/);
+          if (match) friendlyName = match[1] + match[2] + ' ' + match[3];
+        }
         makeRow({ name: friendlyName, target: target });
         rows.lastElementChild.children[0].focus();
         status.textContent = friendlyName
-          ? 'Friendly name filled in. Review it, then select Save.'
+          ? (activeMode === 'DSTAR'
+              ? 'D-Star reflector label filled in. Review it, then select Save.'
+              : 'Friendly name filled in. Review it, then select Save.')
           : 'No friendly name was found. Enter a name, then select Save.';
       } catch (error) {
         status.textContent = error.message;
