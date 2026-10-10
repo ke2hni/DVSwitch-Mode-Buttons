@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = (ROOT / 'dvswitch-mode-buttons.sh').read_text()
 SCRIPT = (ROOT / 'dvswitch-mode-favorites.js').read_text()
 HELPER = (ROOT / 'dvswitch-mode-favorites').read_text()
+ENDPOINT = INSTALLER.split('install -o root -g root -m 644 /dev/stdin "$ENDPOINT" <<\'PHP\'\n', 1)[1].split('\nPHP\n', 1)[0]
 
 
 class FavoritesDashboardTests(unittest.TestCase):
@@ -21,7 +22,22 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("tuner.requestSubmit()", SCRIPT)
         self.assertIn("addCurrentTargetToFavorites", SCRIPT)
         self.assertIn("selector.value = activeMode", SCRIPT)
-        self.assertIn("makeRow({ name: '', target: target })", SCRIPT)
+        self.assertIn("makeRow({ name: friendlyName, target: target })", SCRIPT)
+        self.assertIn('loadTargetNames(activeMode)', SCRIPT)
+        self.assertIn("names[target] || ''", SCRIPT)
+
+    def test_target_name_endpoint_uses_the_matching_bm_or_tgif_talkgroup_list(self):
+        self.assertIn("isset($_GET['targetNames'])", ENDPOINT)
+        self.assertIn("'/var/lib/mmdvm/TGList_BM.txt'", ENDPOINT)
+        self.assertIn("'/var/lib/mmdvm/TGList_TGIF.txt'", ENDPOINT)
+        self.assertIn("trim($fields[1]) !== '0'", ENDPOINT)
+        self.assertIn("str_replace('_', ' ', trim($fields[2]))", ENDPOINT)
+        self.assertIn("'/var/lib/mmdvm/YSFHosts.txt'", ENDPOINT)
+        self.assertIn("trim($fields[1])", ENDPOINT)
+        self.assertIn("$mode.'Hosts.json'", ENDPOINT)
+        self.assertIn("array('name', 'sponsor')", ENDPOINT)
+        self.assertIn("last-dmr-network", ENDPOINT)
+        self.assertNotIn('DSTARHosts', ENDPOINT)
 
     def test_editor_save_is_server_validated_and_uses_root_helper(self):
         self.assertIn("'application/json') === 0", INSTALLER)

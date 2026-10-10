@@ -28,6 +28,7 @@
     const editor = root.querySelector('.dvs-favorites-editor');
     const selector = root.querySelector('.dvs-favorites-mode');
     const rows = root.querySelector('.dvs-favorites-rows');
+    const nameCaches = new Map();
     let activeMode = '';
     let editing = [];
 
@@ -41,6 +42,21 @@
       const result = await response.json();
       if (!response.ok || !result.ok || !Array.isArray(result.favorites)) throw new Error(result.error || 'Unable to load favorites.');
       return result.favorites;
+    }
+
+    async function loadTargetNames(mode) {
+      if (!validMode(mode)) return {};
+      if (!nameCaches.has(mode)) {
+        const request = fetch('/dvswitch/dvswitch-mode-buttons.php?targetNames=' + encodeURIComponent(mode), { cache: 'no-store' })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            if (!result.ok || !result.names || typeof result.names !== 'object') throw new Error(result.error || 'Unable to load target names.');
+            return result.names;
+          });
+        nameCaches.set(mode, request);
+      }
+      try { return await nameCaches.get(mode); }
+      catch (error) { nameCaches.delete(mode); throw error; }
     }
 
     function setActive(mode, network) {
@@ -135,9 +151,18 @@
           status.textContent = 'A mode can have up to 30 favorites.';
           return;
         }
-        makeRow({ name: '', target: target });
+        let friendlyName = '';
+        try {
+          const names = await loadTargetNames(activeMode);
+          friendlyName = names[target] || '';
+        } catch (error) {
+          status.textContent = error.message;
+        }
+        makeRow({ name: friendlyName, target: target });
         rows.lastElementChild.children[0].focus();
-        status.textContent = 'Name the favorite, then select Save.';
+        status.textContent = friendlyName
+          ? 'Friendly name filled in. Review it, then select Save.'
+          : 'No friendly name was found. Enter a name, then select Save.';
       } catch (error) {
         status.textContent = error.message;
       }

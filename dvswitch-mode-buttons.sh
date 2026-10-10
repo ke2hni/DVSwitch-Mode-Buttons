@@ -424,6 +424,55 @@ if (isset($_GET['favorites'])) {
     $items = is_array($saved) && isset($saved[$mode]) && is_array($saved[$mode]) ? $saved[$mode] : array();
     header('Content-Type: application/json'); echo json_encode(array('ok' => true, 'mode' => $mode, 'favorites' => $items)); exit;
 }
+if (isset($_GET['targetNames'])) {
+    $mode = strtoupper(trim((string)$_GET['targetNames']));
+    if (!in_array($mode, $allowed, true)) { http_response_code(400); header('Content-Type: application/json'); echo json_encode(array('ok' => false, 'error' => 'Unsupported mode')); exit; }
+    $names = array();
+    if ($mode === 'BM' || $mode === 'TGIF') {
+        $file = ($mode === 'TGIF') ? '/var/lib/mmdvm/TGList_TGIF.txt' : '/var/lib/mmdvm/TGList_BM.txt';
+    } elseif ($mode === 'STFU') {
+        $selected = is_readable('/var/lib/dvswitch-mode-buttons/last-dmr-network') ? strtoupper(trim((string)file_get_contents('/var/lib/dvswitch-mode-buttons/last-dmr-network'))) : '';
+        $file = ($selected === 'TGIF') ? '/var/lib/mmdvm/TGList_TGIF.txt' : '/var/lib/mmdvm/TGList_BM.txt';
+    } else {
+        $file = '';
+    }
+    if ($file !== '' && is_readable($file)) {
+        foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: array() as $line) {
+            if ($line === '' || $line[0] === '#') continue;
+            $fields = explode(';', $line, 4);
+            if (count($fields) !== 4 || trim($fields[1]) !== '0') continue;
+            $target = trim($fields[0]);
+            $name = preg_replace('/\s+/u', ' ', str_replace('_', ' ', trim($fields[2])));
+            if (preg_match('/^[A-Za-z0-9_-]{1,32}$/', $target) && is_string($name) && $name !== '') $names[$target] = $name;
+        }
+    }
+    if ($mode === 'YSF' && is_readable('/var/lib/mmdvm/YSFHosts.txt')) {
+        foreach (file('/var/lib/mmdvm/YSFHosts.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: array() as $line) {
+            if ($line === '' || $line[0] === '#') continue;
+            $fields = explode(';', $line);
+            if (count($fields) < 2) continue;
+            $target = trim($fields[0]);
+            $name = preg_replace('/\s+/u', ' ', str_replace('_', ' ', trim($fields[1])));
+            if (preg_match('/^[A-Za-z0-9_-]{1,32}$/', $target) && is_string($name) && $name !== '') $names[$target] = $name;
+        }
+    } elseif (($mode === 'P25' || $mode === 'NXDN') && is_readable('/var/lib/mmdvm/'.$mode.'Hosts.json')) {
+        $database = json_decode((string)file_get_contents('/var/lib/mmdvm/'.$mode.'Hosts.json'), true);
+        if (isset($database['reflectors']) && is_array($database['reflectors'])) {
+            foreach ($database['reflectors'] as $row) {
+                if (!is_array($row) || !isset($row['designator'])) continue;
+                $target = trim((string)$row['designator']);
+                $name = '';
+                foreach (array('name', 'sponsor') as $field) {
+                    if (!isset($row[$field]) || !is_string($row[$field])) continue;
+                    $candidate = preg_replace('/\s+/u', ' ', str_replace('_', ' ', trim($row[$field])));
+                    if (is_string($candidate) && $candidate !== '' && strcasecmp($candidate, 'Place holder') !== 0) { $name = $candidate; break; }
+                }
+                if (preg_match('/^[A-Za-z0-9_-]{1,32}$/', $target) && $name !== '') $names[$target] = $name;
+            }
+        }
+    }
+    header('Content-Type: application/json'); echo json_encode(array('ok' => true, 'mode' => $mode, 'names' => $names)); exit;
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && stripos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json') === 0) {
     $payload = json_decode((string)file_get_contents('php://input'), true);
     if (!is_array($payload) || !isset($payload['mode'], $payload['favorites']) || !in_array($payload['mode'], $allowed, true) || !is_array($payload['favorites'])) {
