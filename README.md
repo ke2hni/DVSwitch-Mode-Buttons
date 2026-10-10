@@ -222,3 +222,5 @@ switch; its absence does not affect Mode Buttons installation or switching.
 Version 1.0.0-test41 adds D-Star friendly-name lookup from the Pi-Star REF, XRF, DCS, and XLX host files. Module-qualified targets such as `Ref024cl` resolve to the reflector's friendly name.
 
 Version 1.0.0-test42 handles D-Star favorite names without treating hostfile IP addresses as friendly names. It formats a module-qualified tune target such as `ref024cl` as `REF024 C`, matching the D-Star target label displayed on the dashboard.
+
+Version 1.0.0-test43 widens the tune entry field from 10 to 12 character units so module-qualified D-Star targets fit more comfortably.
