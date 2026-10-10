@@ -36,9 +36,9 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("trim($fields[1])", ENDPOINT)
         self.assertIn("$mode.'Hosts.json'", ENDPOINT)
         self.assertIn("array('name', 'sponsor')", ENDPOINT)
-        self.assertIn("last-dmr-network", ENDPOINT)
-        self.assertIn("/opt/MMDVM_Bridge/MMDVM_Bridge.ini", ENDPOINT)
-        self.assertIn("stripos($address, 'tgif')", ENDPOINT)
+        stfu_branch = ENDPOINT.split("} elseif ($mode === 'STFU') {", 1)[1].split("} else {", 1)[0]
+        self.assertIn("$file = '/var/lib/mmdvm/TGList_BM.txt';", stfu_branch)
+        self.assertNotIn('TGList_TGIF.txt', stfu_branch)
         self.assertNotIn('DSTARHosts', ENDPOINT)
 
     def test_editor_save_is_server_validated_and_uses_root_helper(self):
@@ -50,7 +50,7 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('len(items) > 30', HELPER)
 
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test39"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test40"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
