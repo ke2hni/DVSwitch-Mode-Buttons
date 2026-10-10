@@ -19,6 +19,9 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("favoriteSelect.appendChild(option)", SCRIPT)
         self.assertIn("input.value = favoriteSelect.value", SCRIPT)
         self.assertIn("tuner.requestSubmit()", SCRIPT)
+        self.assertIn("addCurrentTargetToFavorites", SCRIPT)
+        self.assertIn("selector.value = activeMode", SCRIPT)
+        self.assertIn("makeRow({ name: '', target: target })", SCRIPT)
 
     def test_editor_save_is_server_validated_and_uses_root_helper(self):
         self.assertIn("'application/json') === 0", INSTALLER)
@@ -29,7 +32,7 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('len(items) > 30', HELPER)
 
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test38"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test39"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
@@ -43,6 +46,8 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("includes('RX Monitor')", SCRIPT)
         self.assertIn("controlLine.insertBefore(rxButton, controlLine.firstChild)", SCRIPT)
         self.assertIn('dvs-rx-monitor-inline', INSTALLER)
+        self.assertIn('class="button link dvs-favorites-add-current"', INSTALLER)
+        self.assertIn('width:10ch', INSTALLER)
 
     def test_test18_upgrade_restores_static_tune_and_favorites_markup(self):
         source = (

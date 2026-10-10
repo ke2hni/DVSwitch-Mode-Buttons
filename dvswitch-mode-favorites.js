@@ -7,6 +7,7 @@
     const tuner = document.getElementById('dvs-target-tuner');
     const input = document.getElementById('dvs-target-input');
     const tuneButton = document.getElementById('dvs-target-submit');
+    const addFavoriteButton = root.querySelector('.dvs-favorites-add-current');
     const tuneStatus = document.getElementById('dvs-target-message');
     if (!root || !tuner || !input) return;
 
@@ -111,6 +112,37 @@
       loadEditorMode();
     }
 
+    async function addCurrentTargetToFavorites() {
+      const target = input.value.trim();
+      if (!validMode(activeMode)) {
+        status.textContent = 'Select a mode before adding a favorite.';
+        return;
+      }
+      if (!/^[A-Za-z0-9_-]{1,32}$/.test(target)) {
+        tuneStatus.textContent = 'Enter a valid ID before adding it to Favorites.';
+        input.focus();
+        return;
+      }
+      selector.value = activeMode;
+      editor.hidden = false;
+      editButton.textContent = 'Close Edit';
+      status.textContent = '';
+      try {
+        editing = await load(selector.value);
+        rows.replaceChildren();
+        editing.forEach(makeRow);
+        if (editing.length >= 30) {
+          status.textContent = 'A mode can have up to 30 favorites.';
+          return;
+        }
+        makeRow({ name: '', target: target });
+        rows.lastElementChild.children[0].focus();
+        status.textContent = 'Name the favorite, then select Save.';
+      } catch (error) {
+        status.textContent = error.message;
+      }
+    }
+
     function closeEdit() {
       editor.hidden = true;
       editButton.textContent = 'Edit';
@@ -120,6 +152,7 @@
     editButton.addEventListener('click', function () {
       if (editor.hidden) enterEdit(); else closeEdit();
     });
+    addFavoriteButton.addEventListener('click', addCurrentTargetToFavorites);
     selector.addEventListener('change', loadEditorMode);
     root.querySelector('.dvs-favorites-add').addEventListener('click', function () {
       if (rows.children.length < 30) makeRow({ name: '', target: '' });

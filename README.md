@@ -59,7 +59,7 @@ Choose **1** to install the buttons or upgrade an existing installation to the c
 - BM/TGIF MMDVM Bridge and Analog Bridge preset switching through the unified mode helper.
 - Per-mode target persistence.
 - A single-line dashboard control for tuning the active mode to a talkgroup or reflector ID. The field uses the existing `dvswitch.sh tune` command through a dedicated root helper; it does not use or install the separate DVS Mode Switcher application.
-- Mode-specific dashboard Favorites. Only the active mode's entries appear beside Tune; **Edit** opens a mode selector so entries for any supported mode can be added, changed, or deleted. Selecting a favorite sends its TG/ref through the same Tune control. Favorites are stored in `/etc/dvswitch-mode-buttons/favorites.json` and remain available after uninstall/reinstall.
+- Mode-specific dashboard Favorites. Only the active mode's entries appear beside Tune; **Edit** opens a mode selector so entries for any supported mode can be added, changed, or deleted. Selecting a favorite sends its TG/ref through the same Tune control. **+ Favorite** opens the active mode's editor with the current target prefilled; enter a name and save it there. Favorites are stored in `/etc/dvswitch-mode-buttons/favorites.json` and remain available after uninstall/reinstall.
 - Standalone DMR Master card rendering for BM and TGIF; while STFU, YSF, P25, NXDN, or D-Star is active, it retains the last BM/TGIF talkgroup instead of displaying another mode’s tune ID.
 - Friendly-name wrapping inside the DMR card.
 - A saved DMR talkgroup that the dashboard updates only while BM or TGIF is active; STFU and other mode IDs never replace it.
