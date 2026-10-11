@@ -1,0 +1,64 @@
+{
+  "BM": [
+    {
+      "name": "WORLD-WIDE",
+      "target": "91"
+    },
+    {
+      "name": "NORTH-AMERICA",
+      "target": "93"
+    }
+  ],
+  "DSTAR": [
+    {
+      "name": "REF024 C",
+      "target": "REF024CL"
+    },
+    {
+      "name": "REF090 C",
+      "target": "REF090CL"
+    }
+  ],
+  "NXDN": [
+    {
+      "name": "SW Florida NXDN Reflector",
+      "target": "239"
+    }
+  ],
+  "P25": [
+    {
+      "name": "P25 North America",
+      "target": "10200"
+    },
+    {
+      "name": "America's Kansas City Wide Digital Network",
+      "target": "31313"
+    }
+  ],
+  "STFU": [
+    {
+      "name": "USA-BRIDGE",
+      "target": "3100"
+    }
+  ],
+  "TGIF": [
+    {
+      "name": "Drink Beer Get Drunk Talk DMR",
+      "target": "125"
+    },
+    {
+      "name": "TGIF The Mothership",
+      "target": "31665"
+    }
+  ],
+  "YSF": [
+    {
+      "name": "US-America Link",
+      "target": "32592"
+    },
+    {
+      "name": "US-ECR",
+      "target": "44444"
+    }
+  ]
+}

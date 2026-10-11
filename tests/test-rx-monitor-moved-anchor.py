@@ -67,7 +67,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             result = run_patcher(target)
             self.assertEqual(result.returncode, 0, result.stderr)
             installed = target.read_text()
-        self.assertIn("<!-- DVSwitch-Mode-Buttons 1.0.0-test40 -->", installed)
+        self.assertIn("<!-- DVSwitch-Mode-Buttons 1.0.0-test44 -->", installed)
         self.assertIn('id="dvs-target-tuner"', installed)
         self.assertIn('id="dvs-favorites"', installed)
         self.assertLess(installed.index("dvs-mode-buttons"), installed.index('<div style="margin-top:8px;">'))
@@ -131,7 +131,7 @@ class RxMonitorAnchorTests(unittest.TestCase):
             second = run_patcher(target)
             self.assertEqual(second.returncode, 0, second.stderr)
             installed = target.read_text()
-        self.assertEqual(installed.count("<!-- DVSwitch-Mode-Buttons 1.0.0-test40 -->"), 1)
+        self.assertEqual(installed.count("<!-- DVSwitch-Mode-Buttons 1.0.0-test44 -->"), 1)
         self.assertEqual(installed.count("// DVSwitch-Mods: RX Monitor left of status v1"), 1)
         self.assertLess(installed.index("dvs-mode-buttons"), installed.index("</center>"))
         self.assertIn("playAudioToggle(8080, this)", installed)
@@ -165,8 +165,27 @@ class RxMonitorAnchorTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             installed = target.read_text()
         self.assertNotIn("1.0.0-test8", installed)
-        self.assertEqual(installed.count("1.0.0-test40"), 1)
+        self.assertEqual(installed.count("1.0.0-test44"), 1)
         self.assertNotIn("old-buttons", installed)
+
+    def test_test43_dashboard_marker_upgrades_to_test44(self) -> None:
+        source = (
+            '<div class="content"><center>\n'
+            '<!-- DVSwitch-Mode-Buttons 1.0.0-test43 -->\n'
+            '<div id="dvs-mode-buttons">old controls</div>\n'
+            '<script src="/dvswitch/dvswitch-mode-favorites.js"></script>\n'
+            '<div style="margin-top:8px;">RX Monitor</div>\n'
+            '</center></div>\n'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "index.php"
+            target.write_text(source)
+            result = run_patcher(target)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            installed = target.read_text()
+        self.assertNotIn("1.0.0-test43", installed)
+        self.assertEqual(installed.count("1.0.0-test44"), 1)
+        self.assertEqual(installed.count('id="dvs-target-tuner"'), 1)
 
 
 if __name__ == "__main__":

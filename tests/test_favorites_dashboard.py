@@ -50,7 +50,7 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('len(items) > 30', HELPER)
 
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test40"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test44"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
@@ -65,7 +65,7 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("controlLine.insertBefore(rxButton, controlLine.firstChild)", SCRIPT)
         self.assertIn('dvs-rx-monitor-inline', INSTALLER)
         self.assertIn('class="button link dvs-favorites-add-current"', INSTALLER)
-        self.assertIn('width:10ch', INSTALLER)
+        self.assertIn('width:12ch', INSTALLER)
 
     def test_test18_upgrade_restores_static_tune_and_favorites_markup(self):
         source = (
