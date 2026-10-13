@@ -1,12 +1,12 @@
 {
   "BM": [
     {
-      "name": "WORLD-WIDE",
-      "target": "91"
-    },
-    {
       "name": "NORTH-AMERICA",
       "target": "93"
+    },
+    {
+      "name": "WORLD-WIDE",
+      "target": "91"
     }
   ],
   "DSTAR": [
@@ -15,12 +15,12 @@
       "target": "REF024CL"
     },
     {
-      "name": "REF090 C",
-      "target": "REF090CL"
-    },
-    {
       "name": "REF030 C",
       "target": "ref030cl"
+    },
+    {
+      "name": "REF090 C",
+      "target": "REF090CL"
     }
   ],
   "NXDN": [
@@ -35,15 +35,27 @@
   ],
   "P25": [
     {
-      "name": "P25 North America",
-      "target": "10200"
-    },
-    {
       "name": "America's Kansas City Wide Digital Network",
       "target": "31313"
+    },
+    {
+      "name": "P25 North America",
+      "target": "10200"
     }
   ],
   "STFU": [
+    {
+      "name": "Disconnect",
+      "target": "4000"
+    },
+    {
+      "name": "NORTH-AMERICA",
+      "target": "93"
+    },
+    {
+      "name": "NorthEast MS",
+      "target": "31285"
+    },
     {
       "name": "USA-BRIDGE",
       "target": "3100"
@@ -51,18 +63,6 @@
     {
       "name": "WORLD-WIDE",
       "target": "91"
-    },
-    {
-      "name": "NORTH-AMERICA",
-      "target": "93"
-    },
-    {
-      "name": "Disconnect",
-      "target": "4000"
-    },
-    {
-      "name": "NorthEast MS",
-      "target": "31285"
     }
   ],
   "TGIF": [

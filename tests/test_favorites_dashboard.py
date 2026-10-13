@@ -50,11 +50,13 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("/usr/local/sbin/dvswitch-mode-favorites", INSTALLER)
         self.assertIn("www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-favorites", INSTALLER)
         self.assertIn("re.fullmatch(r'[A-Za-z0-9_-]{1,32}', target)", HELPER)
-        self.assertIn('os.replace(temporary, PATH)', HELPER)
+        self.assertIn('os.replace(temporary, path)', HELPER)
         self.assertIn('len(items) > 30', HELPER)
+        self.assertIn('clean.sort(key=favorite_sort_key)', HELPER)
+        self.assertIn('favorites.sort(function (left, right)', SCRIPT)
 
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test45"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test46"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)

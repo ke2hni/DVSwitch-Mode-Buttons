@@ -19,6 +19,9 @@ class FavoritesStarterTests(unittest.TestCase):
         self.assertEqual(set(data), {"BM", "TGIF", "STFU", "YSF", "P25", "NXDN", "DSTAR"})
         self.assertTrue(all(data.values()))
         self.assertTrue(all(set(item) == {"name", "target"} for items in data.values() for item in items))
+        for items in data.values():
+            keys = [(item["name"].casefold(), item["target"].casefold()) for item in items]
+            self.assertEqual(keys, sorted(keys), "starter favorites must be alphabetized within each mode")
 
     def test_install_copies_starter_once_and_preserves_existing_favorites(self):
         match = re.search(r"(?ms)^install_favorites_starter\(\)\{\n.*?^\}", INSTALLER)

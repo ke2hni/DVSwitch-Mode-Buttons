@@ -202,6 +202,10 @@
         editorStatus.textContent = 'Enter a name and a valid TG / reflector ID for each favorite.';
         return;
       }
+      favorites.sort(function (left, right) {
+        const byName = left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+        return byName || left.target.localeCompare(right.target, undefined, { sensitivity: 'base' });
+      });
       try {
         const response = await fetch('/dvswitch/dvswitch-mode-buttons.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },

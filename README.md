@@ -184,7 +184,7 @@ Uninstall removes both mode helpers, the target-state helper, tuner helper, endp
 
 The repository keeps `dvswitch-display-layout.sh` as a separate installer script. It updates `index.php`, `css/css.php`, `include/lh.php`, `include/localtx.php`, and `include/system.php`; the ownership helper stores the specific substitutions made by the Buttons install.
 
-`/etc/dvswitch-mode-buttons/favorites.json` contains separate favorites for BM, TGIF, STFU, YSF, P25, NXDN, and D-Star. The installer copies the repository's example `favorites.json` there when the file does not already exist, so the dropdown and Edit screen have sample entries on first install. Upgrades preserve an existing file, and uninstall retains it so a reinstall does not erase the user's lists. Edit or remove the sample entries to match the reflectors and talkgroups you use.
+`/etc/dvswitch-mode-buttons/favorites.json` contains separate favorites for BM, TGIF, STFU, YSF, P25, NXDN, and D-Star. Each mode's list is alphabetized by favorite name when saved, with each target ID kept with its name. The installer copies the repository's example `favorites.json` there when the file does not already exist, so the dropdown and Edit screen have sample entries on first install. Upgrades preserve an existing file, and uninstall retains it so a reinstall does not erase the user's lists. Edit or remove the sample entries to match the reflectors and talkgroups you use.
 
 The BM/TGIF network-switch code now lives in the same installed mode helper; the old DMR helper path remains as a compatibility symlink. `dvswitch-mode-targets` remains a separate runtime command because the patched `dvswitch.sh tune` path invokes it directly to save and retrieve targets. The state directory is `755` so Apache can read the card state. The saved DMR target is owned by `root:www-data` with mode `664`, allowing the status page to retain the live DMR talkgroup when the active mode changes. `mode-targets.json` remains private at `600`.
 
@@ -228,3 +228,5 @@ Version 1.0.0-test43 widens the tune entry field from 10 to 12 character units s
 Version 1.0.0-test44 installs the repository's example `favorites.json` when no favorites file exists yet. It provides starter entries for each supported mode so the dropdown and Edit screen have examples immediately. Reinstalling or upgrading preserves an existing favorites file.
 
 Version 1.0.0-test45 opens the Favorites editor in a scrollable popup and explains how to add, edit, delete, save, and cancel entries. The installer upgrades the previous test44 inline editor in place.
+
+Version 1.0.0-test46 saves each mode's favorites alphabetically by name while keeping the target ID associated with its entry. Run `python3 tests/test_favorites_sort.py` to verify the ordering.
