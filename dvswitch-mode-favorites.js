@@ -23,9 +23,10 @@
     }
 
     const favoriteSelect = root.querySelector('.dvs-favorites-select');
-    const status = root.querySelector('.dvs-favorites-status');
+    const listStatus = root.querySelector('.dvs-favorites-list-status');
     const editButton = root.querySelector('.dvs-favorites-edit');
     const editor = root.querySelector('.dvs-favorites-editor');
+    const editorStatus = editor.querySelector('.dvs-favorites-status');
     const selector = root.querySelector('.dvs-favorites-mode');
     const rows = root.querySelector('.dvs-favorites-rows');
     const nameCaches = new Map();
@@ -65,13 +66,13 @@
         button.classList.toggle('selected', button.dataset.mode === activeMode);
       });
       root.hidden = !validMode(activeMode);
-      if (!editor.hidden) return;
+      if (editor.open) return;
       showFavorites();
     }
 
     async function showFavorites() {
       favoriteSelect.replaceChildren(new Option('Select favorite', ''));
-      status.textContent = '';
+      listStatus.textContent = '';
       if (!validMode(activeMode)) return;
       try {
         const favorites = await load(activeMode);
@@ -83,7 +84,7 @@
           favoriteSelect.appendChild(option);
         });
       } catch (error) {
-        status.textContent = error.message;
+        listStatus.textContent = error.message;
       }
     }
 
@@ -112,18 +113,18 @@
 
     async function loadEditorMode() {
       rows.replaceChildren();
-      status.textContent = '';
+      editorStatus.textContent = '';
       try {
         editing = await load(selector.value);
         editing.forEach(makeRow);
       } catch (error) {
-        status.textContent = error.message;
+        editorStatus.textContent = error.message;
       }
     }
 
     function enterEdit() {
       selector.value = validMode(activeMode) ? activeMode : 'BM';
-      editor.hidden = false;
+      editor.showModal();
       editButton.textContent = 'Close Edit';
       loadEditorMode();
     }
@@ -131,7 +132,7 @@
     async function addCurrentTargetToFavorites() {
       const target = input.value.trim();
       if (!validMode(activeMode)) {
-        status.textContent = 'Select a mode before adding a favorite.';
+        editorStatus.textContent = 'Select a mode before adding a favorite.';
         return;
       }
       if (!/^[A-Za-z0-9_-]{1,32}$/.test(target)) {
@@ -140,15 +141,15 @@
         return;
       }
       selector.value = activeMode;
-      editor.hidden = false;
+      if (!editor.open) editor.showModal();
       editButton.textContent = 'Close Edit';
-      status.textContent = '';
+      editorStatus.textContent = '';
       try {
         editing = await load(selector.value);
         rows.replaceChildren();
         editing.forEach(makeRow);
         if (editing.length >= 30) {
-          status.textContent = 'A mode can have up to 30 favorites.';
+          editorStatus.textContent = 'A mode can have up to 30 favorites.';
           return;
         }
         let friendlyName = '';
@@ -156,7 +157,7 @@
           const names = await loadTargetNames(activeMode);
           friendlyName = names[target] || '';
         } catch (error) {
-          status.textContent = error.message;
+          editorStatus.textContent = error.message;
         }
         if (activeMode === 'DSTAR' && !friendlyName) {
           const dstarTarget = target.toUpperCase();
@@ -165,30 +166,32 @@
         }
         makeRow({ name: friendlyName, target: target });
         rows.lastElementChild.children[0].focus();
-        status.textContent = friendlyName
+        editorStatus.textContent = friendlyName
           ? (activeMode === 'DSTAR'
               ? 'D-Star reflector label filled in. Review it, then select Save.'
               : 'Friendly name filled in. Review it, then select Save.')
           : 'No friendly name was found. Enter a name, then select Save.';
       } catch (error) {
-        status.textContent = error.message;
+        editorStatus.textContent = error.message;
       }
     }
 
     function closeEdit() {
-      editor.hidden = true;
-      editButton.textContent = 'Edit';
-      showFavorites();
+      if (editor.open) editor.close();
     }
 
+    editor.addEventListener('close', function () {
+      editButton.textContent = 'Edit';
+      showFavorites();
+    });
     editButton.addEventListener('click', function () {
-      if (editor.hidden) enterEdit(); else closeEdit();
+      if (!editor.open) enterEdit(); else closeEdit();
     });
     addFavoriteButton.addEventListener('click', addCurrentTargetToFavorites);
     selector.addEventListener('change', loadEditorMode);
     root.querySelector('.dvs-favorites-add').addEventListener('click', function () {
       if (rows.children.length < 30) makeRow({ name: '', target: '' });
-      else status.textContent = 'A mode can have up to 30 favorites.';
+      else editorStatus.textContent = 'A mode can have up to 30 favorites.';
     });
     root.querySelector('.dvs-favorites-cancel').addEventListener('click', closeEdit);
     root.querySelector('.dvs-favorites-save').addEventListener('click', async function () {
@@ -196,7 +199,7 @@
         return { name: row.children[0].value.trim(), target: row.children[1].value.trim() };
       });
       if (favorites.some(function (favorite) { return !favorite.name || !/^[A-Za-z0-9_-]{1,32}$/.test(favorite.target); })) {
-        status.textContent = 'Enter a name and a valid TG / reflector ID for each favorite.';
+        editorStatus.textContent = 'Enter a name and a valid TG / reflector ID for each favorite.';
         return;
       }
       try {
@@ -206,10 +209,10 @@
         });
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.error || 'Unable to save favorites.');
-        status.textContent = result.message || 'Favorites saved.';
+        editorStatus.textContent = result.message || 'Favorites saved.';
         if (selector.value === activeMode) showFavorites();
       } catch (error) {
-        status.textContent = error.message;
+        editorStatus.textContent = error.message;
       }
     });
 
