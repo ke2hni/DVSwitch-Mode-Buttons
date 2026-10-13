@@ -17,12 +17,20 @@
     {
       "name": "REF090 C",
       "target": "REF090CL"
+    },
+    {
+      "name": "REF030 C",
+      "target": "ref030cl"
     }
   ],
   "NXDN": [
     {
       "name": "SW Florida NXDN Reflector",
       "target": "239"
+    },
+    {
+      "name": "World Wide",
+      "target": "65000"
     }
   ],
   "P25": [
@@ -39,6 +47,14 @@
     {
       "name": "USA-BRIDGE",
       "target": "3100"
+    },
+    {
+      "name": "WORLD-WIDE",
+      "target": "91"
+    },
+    {
+      "name": "NORTH-AMERICA",
+      "target": "93"
     }
   ],
   "TGIF": [
@@ -59,6 +75,14 @@
     {
       "name": "US-ECR",
       "target": "44444"
+    },
+    {
+      "name": "US-KCWide",
+      "target": "32453"
+    },
+    {
+      "name": "US-Netoholics",
+      "target": "67498"
     }
   ]
 }
