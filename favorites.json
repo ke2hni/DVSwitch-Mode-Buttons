@@ -16,7 +16,7 @@
     },
     {
       "name": "REF030 C",
-      "target": "ref030cl"
+      "target": "REF030CL"
     },
     {
       "name": "REF090 C",
@@ -67,8 +67,20 @@
   ],
   "TGIF": [
     {
+      "name": "America Link",
+      "target": "31656"
+    },
+    {
       "name": "Drink Beer Get Drunk Talk DMR",
       "target": "125"
+    },
+    {
+      "name": "Freedom",
+      "target": "51598"
+    },
+    {
+      "name": "MUDDUCKS",
+      "target": "314255"
     },
     {
       "name": "TGIF The Mothership",
