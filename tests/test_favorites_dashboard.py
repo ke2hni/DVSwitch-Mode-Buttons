@@ -55,15 +55,20 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('clean.sort(key=favorite_sort_key)', HELPER)
         self.assertIn('favorites.sort(function (left, right)', SCRIPT)
 
+    def test_favorites_editor_explains_cancel_and_close_clearly(self):
+        self.assertIn('<strong>Cancel or Esc</strong> closes this editor and discards unsaved changes.', INSTALLER)
+        self.assertIn('class="button link dvs-favorites-cancel">Cancel / Close</button>', INSTALLER)
+        self.assertIn('Select <strong>Save</strong> to keep your changes.', INSTALLER)
+
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test46"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test47"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
         self.assertIn('id="dvs-target-tuner"', INSTALLER)
         self.assertIn('id="dvs-favorites"', INSTALLER)
         self.assertIn('<dialog class="dvs-favorites-editor"', INSTALLER)
-        self.assertIn('Select <strong>Save</strong> to keep your changes.', INSTALLER)
+        self.assertIn("marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test47 -->'", INSTALLER)
         self.assertIn('max-height:45vh', INSTALLER)
         self.assertIn('dvs-favorites-editor', INSTALLER)
         self.assertIn('class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div>', INSTALLER)
