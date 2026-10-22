@@ -17,7 +17,9 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('editor.showModal()', SCRIPT)
         self.assertIn("editor.addEventListener('close'", SCRIPT)
         self.assertIn('editor.close()', SCRIPT)
-        self.assertIn('A mode can have up to 30 favorites.', SCRIPT)
+        self.assertIn('A mode can have up to 100 favorites.', SCRIPT)
+        self.assertIn('editing.length >= 100', SCRIPT)
+        self.assertIn('rows.children.length < 100', SCRIPT)
         self.assertIn("selector.innerHTML", SCRIPT)
         for mode in ('BM', 'TGIF', 'STFU', 'YSF', 'P25', 'NXDN', 'DSTAR'):
             self.assertIn("value=\"%s\"" % mode, SCRIPT)
@@ -51,7 +53,7 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn("www-data ALL=(root) NOPASSWD: /usr/local/sbin/dvswitch-mode-favorites", INSTALLER)
         self.assertIn("re.fullmatch(r'[A-Za-z0-9_-]{1,32}', target)", HELPER)
         self.assertIn('os.replace(temporary, path)', HELPER)
-        self.assertIn('len(items) > 30', HELPER)
+        self.assertIn('len(items) > 100', HELPER)
         self.assertIn('clean.sort(key=favorite_sort_key)', HELPER)
         self.assertIn('favorites.sort(function (left, right)', SCRIPT)
 
@@ -61,14 +63,14 @@ class FavoritesDashboardTests(unittest.TestCase):
         self.assertIn('Select <strong>Save</strong> to keep your changes.', INSTALLER)
 
     def test_test23_upgrade_and_uninstall_cover_the_favorites_script(self):
-        self.assertIn('VERSION="1.0.0-test47"', INSTALLER)
+        self.assertIn('VERSION="1.0.0-test48"', INSTALLER)
         self.assertIn('|17|18|19|20|21|22|23', INSTALLER)
         self.assertIn('dvswitch-mode-favorites.js', INSTALLER)
         self.assertIn('./dvswitch-mode-favorites "$FAVORITES_HELPER"', INSTALLER)
         self.assertIn('id="dvs-target-tuner"', INSTALLER)
         self.assertIn('id="dvs-favorites"', INSTALLER)
         self.assertIn('<dialog class="dvs-favorites-editor"', INSTALLER)
-        self.assertIn("marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test47 -->'", INSTALLER)
+        self.assertIn("marker='<!-- DVSwitch-Mode-Buttons 1.0.0-test48 -->'", INSTALLER)
         self.assertIn('max-height:45vh', INSTALLER)
         self.assertIn('dvs-favorites-editor', INSTALLER)
         self.assertIn('class="dvs-favorites-control-line"><div class="dvs-favorites-heading">Favorites</div>', INSTALLER)

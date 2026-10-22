@@ -23,7 +23,7 @@ def fail(message):
 
 
 def save_favorites(mode, items, path=PATH):
-    if not isinstance(mode, str) or mode not in MODES or not isinstance(items, list) or len(items) > 30:
+    if not isinstance(mode, str) or mode not in MODES or not isinstance(items, list) or len(items) > 100:
         raise ValueError('invalid mode or favorites list')
     clean = []
     for item in items:

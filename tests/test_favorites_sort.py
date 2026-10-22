@@ -16,6 +16,16 @@ loader.exec_module(favorites)
 
 
 class FavoritesSortTests(unittest.TestCase):
+    def test_save_accepts_100_favorites_and_rejects_101(self):
+        favorites_100 = [{'name': f'Favorite {index:03}', 'target': str(index)} for index in range(100)]
+        favorites_101 = favorites_100 + [{'name': 'Favorite 100', 'target': '100'}]
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'favorites.json'
+            self.assertEqual(favorites.save_favorites('YSF', favorites_100, target), 100)
+            self.assertEqual(len(json.loads(target.read_text())['YSF']), 100)
+            with self.assertRaisesRegex(ValueError, 'invalid mode or favorites list'):
+                favorites.save_favorites('YSF', favorites_101, target)
+
     def test_save_sorts_names_per_mode_and_keeps_targets_attached(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / 'favorites.json'

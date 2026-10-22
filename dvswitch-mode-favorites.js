@@ -148,8 +148,8 @@
         editing = await load(selector.value);
         rows.replaceChildren();
         editing.forEach(makeRow);
-        if (editing.length >= 30) {
-          editorStatus.textContent = 'A mode can have up to 30 favorites.';
+        if (editing.length >= 100) {
+          editorStatus.textContent = 'A mode can have up to 100 favorites.';
           return;
         }
         let friendlyName = '';
@@ -190,8 +190,8 @@
     addFavoriteButton.addEventListener('click', addCurrentTargetToFavorites);
     selector.addEventListener('change', loadEditorMode);
     root.querySelector('.dvs-favorites-add').addEventListener('click', function () {
-      if (rows.children.length < 30) makeRow({ name: '', target: '' });
-      else editorStatus.textContent = 'A mode can have up to 30 favorites.';
+      if (rows.children.length < 100) makeRow({ name: '', target: '' });
+      else editorStatus.textContent = 'A mode can have up to 100 favorites.';
     });
     root.querySelector('.dvs-favorites-cancel').addEventListener('click', closeEdit);
     root.querySelector('.dvs-favorites-save').addEventListener('click', async function () {
